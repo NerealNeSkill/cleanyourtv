@@ -949,11 +949,6 @@ public class AuraActivity extends Activity {
         String version = "";
         try { version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (PackageManager.NameNotFoundException ignored) { }
         p.addView(text("AURA TV · " + version, 12, pal.sub, false), lp(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 0, 0, 0, 8));
-        action(p, "classic", t("Классический вид", "Classic look"), t("Вернуть прежний главный экран", "Go back to the original Home screen"), "", () -> {
-            sp.edit().putBoolean(AuraStyle.K_ENABLED, false).apply();
-            startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
-            finish();
-        });
         action(p, "reset", t("Сбросить настройки AURA", "Reset AURA settings"), t("Тема, цвета, сетка, избранное и скрытые приложения", "Theme, colours, grid, shortcuts and hidden apps"), "", () -> {
             SharedPreferences.Editor e = sp.edit();
             for (String key : sp.getAll().keySet()) if (key.startsWith("aura_") && !key.equals(AuraStyle.K_ENABLED)) e.remove(key);
