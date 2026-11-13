@@ -546,6 +546,10 @@ public class AuraSearchActivity extends Activity {
                     String ref = ic1 >= 0 ? c.getString(ic1) : null;
                     if ((ref == null || ref.isEmpty()) && ic2 >= 0) ref = c.getString(ic2);
                     hit.poster = poster(ref, s.pkg);
+                    if (hit.poster == null) {
+                        String kind = ref == null || ref.isEmpty() ? t("нет", "none") : ref.startsWith("http") ? t("ссылка", "web link") : t("не открылась", "could not open");
+                        hit = new Hit(hit.title, (hit.sub == null ? "" : hit.sub + " · ") + t("обложка: ", "cover: ") + kind, hit.intent);
+                    }
                     out.add(hit);
                 }
             } finally {
