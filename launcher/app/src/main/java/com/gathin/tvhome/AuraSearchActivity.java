@@ -412,7 +412,28 @@ public class AuraSearchActivity extends Activity {
             done.add(pkg);
             sources.add(new Source(String.valueOf(ri.activityInfo.applicationInfo.loadLabel(pm)), pkg, new ComponentName(pkg, ri.activityInfo.name)));
         }
-        if (sources.isEmpty() && !header) showMessage(t("Ничего не найдено", "Nothing found"));
+        // 3. Apps that don't publish suggestions but play or search from words: the documented media-search
+        // action, and YouTube's search link.
+        boolean other = false;
+        final String enc = Uri.encode(q);
+        String[] youtube = {"com.google.android.youtube.tv", "com.google.android.youtube"};
+        for (String yt : youtube) {
+            Intent v = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + enc)).setPackage(yt);
+            if (done.contains(yt) || pm.resolveActivity(v, 0) == null) continue;
+            done.add(yt);
+            if (!other) { header(t("Видео и музыка", "Video and music")); other = true; }
+            row(t("Искать «", "Search \"") + q + t("» в YouTube", "\" in YouTube"), t("Открыть поиск в приложении", "Open the app's own search"), v, icon(yt));
+        }
+        Intent play = new Intent("android.media.action.MEDIA_PLAY_FROM_SEARCH").putExtra(SearchManager.QUERY, q);
+        for (ResolveInfo ri : pm.queryIntentActivities(play, 0)) {
+            String pkg = ri.activityInfo.packageName;
+            if (pkg.equals(getPackageName()) || done.contains(pkg)) continue;
+            done.add(pkg);
+            if (!other) { header(t("Видео и музыка", "Video and music")); other = true; }
+            row(t("Искать «", "Search \"") + q + t("» в ", "\" in ") + ri.loadLabel(pm), t("Открыть поиск в приложении", "Open the app's own search"),
+                    new Intent(play).setPackage(pkg), ri.loadIcon(pm));
+        }
+        if (sources.isEmpty() && !header && !other) showMessage(t("Ничего не найдено", "Nothing found"));
         final String query = q;
         for (final Source s : sources) {
             Future<List<Hit>> f = pool.submit(() -> {
