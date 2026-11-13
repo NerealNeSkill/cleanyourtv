@@ -458,6 +458,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // AURA home screen (aura_ui): hand Home over to it. The Inputs request stays here, where the Inputs menu lives.
+        if (!ACTION_VIEW_INPUTS.equals(getIntent().getAction()) && AuraStyle.shouldRun(this)) {
+            Intent aura = new Intent(this, AuraActivity.class).setAction(getIntent().getAction())
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            try {
+                startActivity(aura);
+                finish();
+                return;
+            } catch (RuntimeException e) {
+                // Fall through to the classic Home.
+            }
+        }
         setContentView(R.layout.activity_main);
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).

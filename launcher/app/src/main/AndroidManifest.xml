@@ -106,6 +106,16 @@
             </intent-filter>
         </activity>
 
+        <!-- AURA home screen: MainActivity hands Home over to it while aura_ui is on. Same window rules as MainActivity. -->
+        <activity
+            android:name=".AuraActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
+            android:screenOrientation="landscape" />
+
         <activity
             android:name=".LauncherSettingsActivity"
             android:exported="false"

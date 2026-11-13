@@ -4,4 +4,7 @@
     <bool name="rtl_menu_bar">false</bool>
     <!-- Other locales keep the date on one line, ellipsized as before. -->
     <bool name="date_single_line">true</bool>
+    <!-- AURA home screen (AuraActivity, docs/aura.md). On in this fork; false keeps the classic Home. "aura_ui" in a
+         pushed config.json overrides it, and AURA's own settings can switch back. -->
+    <bool name="aura_ui">true</bool>
 </resources>
