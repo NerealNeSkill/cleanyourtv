@@ -5,6 +5,7 @@ import static com.gathin.tvhome.AuraStyle.t;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -949,6 +950,7 @@ public class AuraActivity extends Activity {
         String version = "";
         try { version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (PackageManager.NameNotFoundException ignored) { }
         p.addView(text("AURA TV · " + version, 12, pal.sub, false), lp(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0, 0, 0, 0, 8));
+        action(p, "stockhome", t("Родной экран ТВ", "The TV's own home screen"), t("Открыть главный экран, с которым пришёл ТВ", "Open the home screen the TV came with"), "", this::openStockHome);
         action(p, "reset", t("Сбросить настройки AURA", "Reset AURA settings"), t("Тема, цвета, сетка, избранное и скрытые приложения", "Theme, colours, grid, shortcuts and hidden apps"), "", () -> {
             SharedPreferences.Editor e = sp.edit();
             for (String key : sp.getAll().keySet()) if (key.startsWith("aura_") && !key.equals(AuraStyle.K_ENABLED)) e.remove(key);
@@ -1047,6 +1049,23 @@ public class AuraActivity extends Activity {
                     result.done(out);
                 })
                 .setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    /** Opens the TV's own home screen once (Google TV Home and the like); AURA stays the default and nothing is changed. */
+    private void openStockHome() {
+        PackageManager pm = getPackageManager();
+        for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)) {
+            String pkg = ri.activityInfo.packageName;
+            if (pkg.equals(getPackageName()) || pkg.equals("android") || pkg.contains("fallbackhome") || ri.activityInfo.name.contains("FallbackHome")
+                    || pkg.contains("setupwraith") || pkg.contains("provision")) continue;
+            try {
+                startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                        .setComponent(new ComponentName(pkg, ri.activityInfo.name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (ActivityNotFoundException | SecurityException ignored) {
+            }
+        }
+        Toast.makeText(this, t("Родной экран на этом ТВ отключён", "The TV's own home screen is switched off on this TV"), Toast.LENGTH_LONG).show();
     }
 
     // ---------------------------------------------------------------- voice
