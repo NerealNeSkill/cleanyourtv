@@ -386,7 +386,17 @@ public class AuraSearchActivity extends Activity {
                 why = again.getClass().getSimpleName();
             }
         }
-        Toast.makeText(this, t("Не удалось открыть: ", "Cannot open: ") + why
+        // No address to open: the app's own search for the exact title still gets the person there.
+        String title = i.getStringExtra(SearchManager.QUERY);
+        if (i.getData() == null && i.getPackage() != null && title != null) {
+            try {
+                startActivity(new Intent(Intent.ACTION_SEARCH).setPackage(i.getPackage()).putExtra(SearchManager.QUERY, title).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (ActivityNotFoundException | SecurityException again) {
+                why = why + "/" + again.getClass().getSimpleName();
+            }
+        }
+        Toast.makeText(this, t("Не удалось открыть: ", "Cannot open: ") + why + " " + i.getAction()
                 + (i.getData() == null ? t(" (нет адреса)", " (no address)") : " " + i.getData().getScheme() + "://" + i.getData().getHost()), Toast.LENGTH_LONG).show();
     }
 
