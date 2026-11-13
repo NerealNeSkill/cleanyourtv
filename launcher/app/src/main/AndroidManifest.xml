@@ -55,6 +55,10 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
         </intent>
+        <!-- AURA search: the apps that publish search suggestions. -->
+        <intent>
+            <action android:name="android.intent.action.SEARCH" />
+        </intent>
         <!-- stock_home_redirect: HomeKeyService looks up the stock launcher's HOME activity. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -114,6 +118,14 @@
             android:stateNotNeeded="true"
             android:excludeFromRecents="true"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
+            android:screenOrientation="landscape" />
+
+        <!-- AURA search: asks the installed apps for suggestions and shows them under each app's name. -->
+        <activity
+            android:name=".AuraSearchActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:windowSoftInputMode="stateVisible|adjustResize"
             android:screenOrientation="landscape" />
 
         <activity

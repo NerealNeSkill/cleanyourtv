@@ -468,6 +468,11 @@ public class AuraActivity extends Activity {
                 else refreshApps();
             }
         });
+        search.setOnEditorActionListener((v, action, ev) -> {
+            if (action != EditorInfo.IME_ACTION_SEARCH || v.getText().toString().trim().length() < 2) return false;
+            startActivity(new Intent(this, AuraSearchActivity.class).putExtra(AuraSearchActivity.EXTRA_QUERY, v.getText().toString().trim()));
+            return true;
+        });
         bar.addView(search, lp(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         if (sp.getBoolean(AuraStyle.K_VOICE, true)) {
             TextView chip = text(t("Голос", "Voice"), 9, pal.sub, false);
