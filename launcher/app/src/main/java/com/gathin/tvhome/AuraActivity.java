@@ -1054,6 +1054,15 @@ public class AuraActivity extends Activity {
     // ---------------------------------------------------------------- voice
 
     private void voice() {
+        // The TV's own voice search first (Google Assistant / the Android TV search, the same one the
+        // remote's mic button opens), then the plain speech recogniser. Its screen is the system's.
+        for (String action : new String[]{Intent.ACTION_VOICE_COMMAND, "android.intent.action.VOICE_ASSIST", Intent.ACTION_ASSIST}) {
+            try {
+                startActivity(new Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (ActivityNotFoundException | SecurityException ignored) {
+            }
+        }
         Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 .putExtra(RecognizerIntent.EXTRA_PROMPT, t("Назовите приложение", "Say an app name"));
