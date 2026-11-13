@@ -54,7 +54,7 @@ public class AuraSearchActivity extends Activity {
     static final String EXTRA_QUERY = "query";
     static final String EXTRA_VOICE = "voice";
     private static final int VOICE_REQUEST = 52;
-    private static final int PER_APP = 5;
+    private static final int PER_APP = 8;
     private static final long WAIT_MS = 1800;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -411,7 +411,19 @@ public class AuraSearchActivity extends Activity {
         if (sources.isEmpty() && !header) showMessage(t("Ничего не найдено", "Nothing found"));
         final String query = q;
         for (final Source s : sources) {
-            Future<List<Hit>> f = pool.submit(() -> ask(sm, s, query));
+            Future<List<Hit>> f = pool.submit(() -> {
+                List<Hit> first = ask(sm, s, query);
+                String plain = query.replace('ё', 'е').replace('Ё', 'Е');
+                if (plain.equals(query)) return first;
+                List<Hit> second = ask(sm, s, plain);
+                if (first == null) return second;
+                if (second != null) for (Hit h : second) {
+                    boolean dup = false;
+                    for (Hit x : first) if (x.title.equals(h.title)) { dup = true; break; }
+                    if (!dup && first.size() < PER_APP) first.add(h);
+                }
+                return first;
+            });
             pool.execute(() -> {
                 List<Hit> hits;
                 try { hits = f.get(WAIT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { f.cancel(true); hits = null; }
