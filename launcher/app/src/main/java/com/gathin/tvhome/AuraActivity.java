@@ -19,7 +19,6 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.speech.RecognizerIntent;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -58,7 +57,6 @@ public class AuraActivity extends Activity {
     private static final int HOME = 0, APPS = 1, SETTINGS = 2;
     private static final String[] CATEGORIES_RU = {"Оформление", "Главный экран", "Приложения", "Голос и поиск", "Пульт и кнопки", "О лаунчере"};
     private static final String[] CATEGORIES_EN = {"Appearance", "Home screen", "Apps", "Voice and search", "Remote and buttons", "About"};
-    private static final int VOICE_REQUEST = 41;
 
     private SharedPreferences sp;
     private AuraStyle.Palette pal;
@@ -1059,39 +1057,8 @@ public class AuraActivity extends Activity {
     // ---------------------------------------------------------------- voice
 
     private void voice() {
-        // The TV's own voice search first (Google Assistant / the Android TV search, the same one the
-        // remote's mic button opens), then the plain speech recogniser. Its screen is the system's.
-        for (String action : new String[]{Intent.ACTION_VOICE_COMMAND, "android.intent.action.VOICE_ASSIST", Intent.ACTION_ASSIST}) {
-            try {
-                startActivity(new Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
-            } catch (ActivityNotFoundException | SecurityException ignored) {
-            }
-        }
-        Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                .putExtra(RecognizerIntent.EXTRA_PROMPT, t("Назовите приложение", "Say an app name"));
-        try {
-            startActivityForResult(i, VOICE_REQUEST);
-        } catch (ActivityNotFoundException | SecurityException e) {
-            Toast.makeText(this, t("Голосовой поиск недоступен на этом ТВ", "Voice search is not available on this TV"), Toast.LENGTH_LONG).show();
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int request, int result, Intent data) {
-        super.onActivityResult(request, result, data);
-        if (request != VOICE_REQUEST || result != RESULT_OK || data == null) return;
-        List<String> spoken = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-        if (spoken == null || spoken.isEmpty()) return;
-        String q = spoken.get(0).toLowerCase(Locale.getDefault()).trim();
-        for (String prefix : new String[]{"открой ", "запусти ", "включи ", "open ", "launch "}) if (q.startsWith(prefix)) q = q.substring(prefix.length());
-        for (App a : apps) {
-            if (a.label.toLowerCase(Locale.getDefault()).equals(q)) { launch(a); return; }
-        }
-        filter = q;
-        page = APPS;
-        build("search");
+        // AURA's own search screen with the voice input in it; the words are the TV's speech recogniser's.
+        startActivity(new Intent(this, AuraSearchActivity.class).putExtra(AuraSearchActivity.EXTRA_VOICE, true));
     }
 
     @Override

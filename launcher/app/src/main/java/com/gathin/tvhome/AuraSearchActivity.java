@@ -9,6 +9,7 @@ import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.speech.RecognizerIntent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.database.Cursor;
@@ -44,6 +45,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class AuraSearchActivity extends Activity {
     static final String EXTRA_QUERY = "query";
+    static final String EXTRA_VOICE = "voice";
+    private static final int VOICE_REQUEST = 52;
     private static final int PER_APP = 5;
     private static final long WAIT_MS = 1800;
 
@@ -109,7 +112,31 @@ public class AuraSearchActivity extends Activity {
 
         String q = getIntent().getStringExtra(EXTRA_QUERY);
         if (q != null && !q.isEmpty()) input.setText(q);
+        else if (getIntent().getBooleanExtra(EXTRA_VOICE, false) && b == null) { listen(); showMessage(t("Слушаю…", "Listening…")); }
         else showMessage(t("Начните вводить или нажмите кнопку микрофона на пульте", "Start typing, or press the mic button on the remote"));
+    }
+
+    /** The TV's speech recogniser, its words land in this screen's search line. */
+    private void listen() {
+        Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                .putExtra(RecognizerIntent.EXTRA_PROMPT, t("Что найти?", "What to find?"));
+        try {
+            startActivityForResult(i, VOICE_REQUEST);
+        } catch (ActivityNotFoundException | SecurityException e) {
+            Toast.makeText(this, t("Голосовой ввод недоступен на этом ТВ", "Voice input is not available on this TV"), Toast.LENGTH_LONG).show();
+            showMessage(t("Введите слова с клавиатуры", "Type the words instead"));
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != VOICE_REQUEST) return;
+        List<String> spoken = result == RESULT_OK && data != null ? data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS) : null;
+        if (spoken == null || spoken.isEmpty()) { showMessage(t("Не расслышал. Введите слова или попробуйте ещё раз", "Didn't catch that. Type the words or try again")); return; }
+        input.setText(spoken.get(0));
+        input.setSelection(input.length());
     }
 
     @Override
