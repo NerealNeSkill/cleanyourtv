@@ -9,7 +9,11 @@ import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.database.Cursor;
@@ -116,8 +120,65 @@ public class AuraSearchActivity extends Activity {
         else showMessage(t("Начните вводить или нажмите кнопку микрофона на пульте", "Start typing, or press the mic button on the remote"));
     }
 
-    /** The TV's speech recogniser, its words land in this screen's search line. */
+    private SpeechRecognizer recognizer;
+
+    /**
+     * Listens with the speech recogniser's API, so no Google window opens over this screen: the words land in the
+     * search line as they are heard. Without the microphone permission or a recogniser the system's own dialog is the
+     * fallback (the permission is asked once; on a TV it can also be given with `pm grant`).
+     */
     private void listen() {
+        if (SpeechRecognizer.isRecognitionAvailable(this) && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            try {
+                if (recognizer == null) {
+                    recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+                    recognizer.setRecognitionListener(new RecognitionListener() {
+                        @Override public void onReadyForSpeech(Bundle p) { }
+                        @Override public void onBeginningOfSpeech() { }
+                        @Override public void onRmsChanged(float r) { }
+                        @Override public void onBufferReceived(byte[] b) { }
+                        @Override public void onEndOfSpeech() { }
+                        @Override public void onEvent(int t, Bundle p) { }
+                        @Override public void onError(int error) {
+                            showMessage(t("Не расслышал. Введите слова или попробуйте ещё раз", "Didn't catch that. Type the words or try again"));
+                        }
+                        @Override public void onPartialResults(Bundle p) { heard(p, false); }
+                        @Override public void onResults(Bundle p) { heard(p, true); }
+                    });
+                }
+                recognizer.startListening(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                        .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true));
+                return;
+            } catch (RuntimeException ignored) {
+                // fall through to the system dialog
+            }
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED && !askedMic) {
+            askedMic = true;
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 53);
+            return;
+        }
+        systemDialog();
+    }
+
+    private boolean askedMic;
+
+    @Override
+    public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
+        if (request != 53) return;
+        if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) listen(); else systemDialog();
+    }
+
+    private void heard(Bundle p, boolean last) {
+        List<String> words = p == null ? null : p.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+        if (words == null || words.isEmpty()) return;
+        input.setText(words.get(0));
+        input.setSelection(input.length());
+    }
+
+    /** The TV's speech recogniser in its own window, its words land in this screen's search line. */
+    private void systemDialog() {
         Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 .putExtra(RecognizerIntent.EXTRA_PROMPT, t("Что найти?", "What to find?"));
@@ -143,6 +204,7 @@ public class AuraSearchActivity extends Activity {
     protected void onDestroy() {
         generation++;
         pool.shutdownNow();
+        if (recognizer != null) recognizer.destroy();
         super.onDestroy();
     }
 
