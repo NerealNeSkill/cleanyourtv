@@ -311,23 +311,6 @@ public class AuraSearchActivity extends Activity {
         final List<Source> sources = new ArrayList<>();
         final SearchManager sm = (SearchManager) getSystemService(SEARCH_SERVICE);
         List<String> done = new ArrayList<>();
-        // The ones the system lists for global search (what the TV's own search asks), by reflection since the call is hidden.
-        try {
-            @SuppressWarnings("unchecked")
-            List<SearchableInfo> global = (List<SearchableInfo>) SearchManager.class.getMethod("getSearchablesInGlobalSearch").invoke(sm);
-            if (global != null) for (SearchableInfo si : global) {
-                ComponentName act = si.getSearchActivity();
-                if (act == null || act.getPackageName().equals(getPackageName()) || done.contains(act.getPackageName())) continue;
-                done.add(act.getPackageName());
-                String label;
-                try { label = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(act.getPackageName(), 0))); } catch (PackageManager.NameNotFoundException e) { label = act.getPackageName(); }
-                Source src = new Source(label, act.getPackageName(), act);
-                src.info = si;
-                sources.add(src);
-            }
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
-            // not available on this Android: the apps that answer SEARCH are asked below
-        }
         List<ResolveInfo> searchers = pm.queryIntentActivities(new Intent(Intent.ACTION_SEARCH), 0);
         for (ResolveInfo ri : searchers) {
             String pkg = ri.activityInfo.packageName;
