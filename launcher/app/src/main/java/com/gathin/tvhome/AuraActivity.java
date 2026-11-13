@@ -782,13 +782,13 @@ public class AuraActivity extends Activity {
         String[] names = "ru".equals(Locale.getDefault().getLanguage()) ? CATEGORIES_RU : CATEGORIES_EN;
         for (int i = 0; i < names.length; i++) {
             final int index = i;
-            LinearLayout item = cardView("cat" + i, i == category, () -> { category = index; showPanel(); View f = panelHolder.getChildAt(0); if (f != null) f.requestFocus(); });
+            LinearLayout item = cardView("cat" + i, i == category, () -> { category = index; showPanel(); markCategories(list); View f = panelHolder.getChildAt(0); if (f != null) f.requestFocus(); });
             item.setOrientation(LinearLayout.HORIZONTAL);
             item.setGravity(Gravity.CENTER_VERTICAL);
             item.setPadding(dp(12), 0, dp(10), 0);
             item.addView(text(names[i], 12, pal.text, i == category), lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             item.addView(glyph(AuraStyle.G_ARROW, pal.sub, 16));
-            item.setOnFocusChangeListener((v, focused) -> { if (focused && category != index) { category = index; showPanel(); } });
+            item.setOnFocusChangeListener((v, focused) -> { if (focused && category != index) { category = index; showPanel(); markCategories(list); } });
             list.addView(item, lp(ViewGroup.LayoutParams.MATCH_PARENT, dp(38), 0, 0, i == 0 ? 0 : 3, 0, 0));
         }
         split.addView(list, lp(dp(210), ViewGroup.LayoutParams.WRAP_CONTENT, 0));
@@ -797,6 +797,16 @@ public class AuraActivity extends Activity {
         c.addView(split);
         showPanel();
         return c;
+    }
+
+    /** Repaints the section list so the highlighted row follows {@code category}. */
+    private void markCategories(LinearLayout list) {
+        for (int i = 0; i < list.getChildCount(); i++) {
+            LinearLayout item = (LinearLayout) list.getChildAt(i);
+            item.setBackground(AuraStyle.card(pal, radius(), i == category));
+            View label = item.getChildAt(0);
+            if (label instanceof TextView) ((TextView) label).setTypeface(null, i == category ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        }
     }
 
     private View bigCard(String tag, int kind, int iconRes, String title, String sub, String action, int tint, String badge, Runnable click) {
