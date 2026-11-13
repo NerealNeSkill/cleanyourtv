@@ -28,7 +28,10 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.graphics.drawable.Drawable;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -60,6 +63,10 @@ public class AuraSearchActivity extends Activity {
     private EditText input;
     private LinearLayout results;
     private int generation;
+    private LinearLayout panel;
+    private TextView status;
+    private View[] bars;
+    private final float[] level = new float[21];
 
     private static final class Hit {
         final String title, sub;
@@ -85,6 +92,56 @@ public class AuraSearchActivity extends Activity {
         root.setBackground(AuraStyle.background(pal));
         root.setPadding(dp(48), dp(28), dp(48), dp(20));
 
+        panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setGravity(Gravity.CENTER_HORIZONTAL);
+        panel.setPadding(dp(20), dp(14), dp(20), dp(14));
+        panel.setBackground(AuraStyle.shape(AuraStyle.alpha(pal.card, 210), pal.border, dp(28), 1));
+        FrameLayout mic = new FrameLayout(this);
+        mic.setBackground(AuraStyle.shape(pal.accent, 0, dp(32), 0));
+        ImageView micGlyph = new ImageView(this);
+        micGlyph.setImageDrawable(new AuraStyle.Glyph(AuraStyle.G_MIC, pal.onAccent));
+        mic.addView(micGlyph, new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
+        panel.addView(mic, new LinearLayout.LayoutParams(dp(64), dp(64)));
+        status = new TextView(this);
+        status.setTextColor(pal.text);
+        status.setTextSize(24);
+        status.setGravity(Gravity.CENTER);
+        status.setPadding(0, dp(6), 0, dp(2));
+        panel.addView(status);
+        LinearLayout wave = new LinearLayout(this);
+        wave.setGravity(Gravity.CENTER);
+        bars = new View[level.length];
+        for (int i = 0; i < bars.length; i++) {
+            bars[i] = new View(this);
+            bars[i].setBackground(AuraStyle.shape(AuraStyle.alpha(pal.accent, 200), 0, dp(2), 0));
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(5), dp(4));
+            bp.leftMargin = bp.rightMargin = dp(3);
+            wave.addView(bars[i], bp);
+        }
+        panel.addView(wave, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)));
+        LinearLayout chips = new LinearLayout(this);
+        chips.setGravity(Gravity.CENTER);
+        String[] ideas = {t("YouTube", "YouTube"), t("Настройки", "Settings"), t("Фильмы", "Films"), t("Музыка", "Music")};
+        for (final String idea : ideas) {
+            TextView chip = new TextView(this);
+            chip.setText(idea);
+            chip.setTextColor(pal.text);
+            chip.setTextSize(13);
+            chip.setFocusable(true);
+            chip.setClickable(true);
+            chip.setPadding(dp(16), dp(7), dp(16), dp(7));
+            chip.setBackground(AuraStyle.card(pal, dp(10), false));
+            chip.setOnFocusChangeListener((v, f) -> v.setBackground(AuraStyle.card(pal, dp(10), f)));
+            chip.setOnClickListener(v -> { input.setText(idea); input.setSelection(input.length()); });
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            cp.leftMargin = cp.rightMargin = dp(5);
+            chips.addView(chip, cp);
+        }
+        panel.addView(chips, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(panel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        setStatus(t("Что найти?", "What to find?"));
+
         LinearLayout bar = new LinearLayout(this);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(dp(16), 0, dp(16), 0);
@@ -104,7 +161,9 @@ public class AuraSearchActivity extends Activity {
         });
         input.setOnEditorActionListener((v, action, ev) -> { schedule(v.getText().toString()); return false; });
         bar.addView(input, new LinearLayout.LayoutParams(0, dp(52), 1f));
-        root.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)));
+        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        barLp.topMargin = dp(12);
+        root.addView(bar, barLp);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -117,7 +176,7 @@ public class AuraSearchActivity extends Activity {
 
         String q = getIntent().getStringExtra(EXTRA_QUERY);
         if (q != null && !q.isEmpty()) input.setText(q);
-        else if (getIntent().getBooleanExtra(EXTRA_VOICE, false) && b == null) { listen(); showMessage(t("Слушаю…", "Listening…")); }
+        else if (getIntent().getBooleanExtra(EXTRA_VOICE, false) && b == null) { listen(); setStatus(t("Слушаю…", "Listening…")); showMessage(t("Скажите название или команду", "Say a name or a command")); }
         else showMessage(t("Начните вводить или нажмите кнопку микрофона на пульте", "Start typing, or press the mic button on the remote"));
     }
 
@@ -136,7 +195,7 @@ public class AuraSearchActivity extends Activity {
                     recognizer.setRecognitionListener(new RecognitionListener() {
                         @Override public void onReadyForSpeech(Bundle p) { }
                         @Override public void onBeginningOfSpeech() { }
-                        @Override public void onRmsChanged(float r) { }
+                        @Override public void onRmsChanged(float r) { wave(r); }
                         @Override public void onBufferReceived(byte[] b) { }
                         @Override public void onEndOfSpeech() { }
                         @Override public void onEvent(int t, Bundle p) { }
@@ -165,6 +224,20 @@ public class AuraSearchActivity extends Activity {
 
     private boolean askedMic;
 
+    private void setStatus(String s) { if (status != null) status.setText(s); }
+
+    /** Moves the bars with the loudness the recogniser reports (about -2..10). */
+    private void wave(float rms) {
+        float v = Math.max(0f, Math.min(1f, (rms + 2f) / 12f));
+        System.arraycopy(level, 1, level, 0, level.length - 1);
+        level[level.length - 1] = v;
+        for (int i = 0; i < bars.length; i++) {
+            ViewGroup.LayoutParams lp = bars[i].getLayoutParams();
+            lp.height = dp(4) + Math.round(level[i] * dp(34));
+            bars[i].setLayoutParams(lp);
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
         if (request != 53) return;
@@ -176,6 +249,7 @@ public class AuraSearchActivity extends Activity {
         if (words == null || words.isEmpty()) return;
         input.setText(words.get(0));
         input.setSelection(input.length());
+        setStatus(last ? t("Ищу…", "Searching…") : t("Слушаю…", "Listening…"));
     }
 
     /** The TV's speech recogniser in its own window, its words land in this screen's search line. */
@@ -242,9 +316,22 @@ public class AuraSearchActivity extends Activity {
         results.addView(h);
     }
 
-    private void row(String title, String sub, final Intent intent) {
+    private void row(String title, String sub, final Intent intent) { row(title, sub, intent, null); }
+
+    private void row(String title, String sub, final Intent intent, Drawable icon) {
         LinearLayout r = new LinearLayout(this);
-        r.setOrientation(LinearLayout.VERTICAL);
+        r.setOrientation(LinearLayout.HORIZONTAL);
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        if (icon != null) {
+            ImageView iv = new ImageView(this);
+            iv.setImageDrawable(icon);
+            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dp(40), dp(40));
+            ip.rightMargin = dp(14);
+            r.addView(iv, ip);
+        }
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        r.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         r.setFocusable(true);
         r.setClickable(true);
         r.setPadding(dp(16), dp(10), dp(16), dp(10));
@@ -255,14 +342,14 @@ public class AuraSearchActivity extends Activity {
         a.setTextColor(pal.text);
         a.setTextSize(16);
         a.setSingleLine(true);
-        r.addView(a);
+        texts.addView(a);
         if (sub != null && !sub.isEmpty()) {
             TextView s = new TextView(this);
             s.setText(sub);
             s.setTextColor(pal.sub);
             s.setTextSize(12);
             s.setSingleLine(true);
-            r.addView(s);
+            texts.addView(s);
         }
         r.setOnClickListener(v -> open(intent));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -283,6 +370,7 @@ public class AuraSearchActivity extends Activity {
     private void search(final String q) {
         final int mine = ++generation;
         results.removeAllViews();
+        if (q.length() >= 2) setStatus("«" + q + "»");
         if (q.length() < 2) {
             showMessage(t("Введите хотя бы две буквы", "Type at least two letters"));
             return;
@@ -304,7 +392,7 @@ public class AuraSearchActivity extends Activity {
             if (go == null) continue;
             seen.add(pkg);
             if (!header) { header(t("Приложения", "Apps")); header = true; }
-            row(label, pkg, go);
+            row(label, t("Открыть приложение", "Open the app"), go, ri.loadIcon(pm));
         }
 
         // 2. Every app that publishes search suggestions.
@@ -315,6 +403,7 @@ public class AuraSearchActivity extends Activity {
         for (ResolveInfo ri : searchers) {
             String pkg = ri.activityInfo.packageName;
             if (pkg.equals(getPackageName()) || done.contains(pkg)) continue;
+            if (pm.getLeanbackLaunchIntentForPackage(pkg) == null && pm.getLaunchIntentForPackage(pkg) == null) continue; // system plumbing, not an app
             done.add(pkg);
             sources.add(new Source(String.valueOf(ri.activityInfo.applicationInfo.loadLabel(pm)), pkg, new ComponentName(pkg, ri.activityInfo.name)));
         }
@@ -334,15 +423,19 @@ public class AuraSearchActivity extends Activity {
     private void addSource(Source s, List<Hit> hits, String q) {
         if (hits != null && !hits.isEmpty()) {
             header(s.label);
-            for (Hit h : hits) row(h.title, h.sub, h.intent);
+            Drawable ic = icon(s.pkg);
+            for (Hit h : hits) row(h.title, h.sub, h.intent, ic);
         }
         Intent search = new Intent(Intent.ACTION_SEARCH).setPackage(s.pkg).putExtra(SearchManager.QUERY, q);
         if (hits == null || hits.isEmpty()) {
             if (getPackageManager().resolveActivity(search, 0) != null) {
-                header(s.label);
-                row(t("Искать «", "Search \"") + q + t("» здесь", "\" here"), s.pkg, search);
+                row(t("Искать «", "Search \"") + q + t("» в ", "\" in ") + s.label, t("Открыть поиск в приложении", "Open the app's own search"), search, icon(s.pkg));
             }
         }
+    }
+
+    private Drawable icon(String pkg) {
+        try { return getPackageManager().getApplicationIcon(pkg); } catch (PackageManager.NameNotFoundException e) { return null; }
     }
 
     /** One app's suggestions for the words, through the content provider its searchable config names. Null: not shared. */
