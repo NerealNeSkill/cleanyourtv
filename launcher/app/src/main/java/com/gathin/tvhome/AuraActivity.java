@@ -262,7 +262,7 @@ public class AuraActivity extends Activity {
     }
 
     private void openInputs() {
-        open(new Intent(MainActivity.ACTION_VIEW_INPUTS).setClass(this, MainActivity.class));
+        startActivity(new Intent(this, AuraInputsActivity.class));
     }
 
     // ---------------------------------------------------------------- view helpers
