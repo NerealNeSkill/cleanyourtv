@@ -71,6 +71,7 @@ public class AuraSearchActivity extends Activity {
         final String label;
         final String pkg;
         final ComponentName searchable;
+        SearchableInfo info;
         Source(String label, String pkg, ComponentName searchable) { this.label = label; this.pkg = pkg; this.searchable = searchable; }
     }
 
@@ -309,8 +310,25 @@ public class AuraSearchActivity extends Activity {
         // 2. Every app that publishes search suggestions.
         final List<Source> sources = new ArrayList<>();
         final SearchManager sm = (SearchManager) getSystemService(SEARCH_SERVICE);
-        List<ResolveInfo> searchers = pm.queryIntentActivities(new Intent(Intent.ACTION_SEARCH), 0);
         List<String> done = new ArrayList<>();
+        // The ones the system lists for global search (what the TV's own search asks), by reflection since the call is hidden.
+        try {
+            @SuppressWarnings("unchecked")
+            List<SearchableInfo> global = (List<SearchableInfo>) SearchManager.class.getMethod("getSearchablesInGlobalSearch").invoke(sm);
+            if (global != null) for (SearchableInfo si : global) {
+                ComponentName act = si.getSearchActivity();
+                if (act == null || act.getPackageName().equals(getPackageName()) || done.contains(act.getPackageName())) continue;
+                done.add(act.getPackageName());
+                String label;
+                try { label = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(act.getPackageName(), 0))); } catch (PackageManager.NameNotFoundException e) { label = act.getPackageName(); }
+                Source src = new Source(label, act.getPackageName(), act);
+                src.info = si;
+                sources.add(src);
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // not available on this Android: the apps that answer SEARCH are asked below
+        }
+        List<ResolveInfo> searchers = pm.queryIntentActivities(new Intent(Intent.ACTION_SEARCH), 0);
         for (ResolveInfo ri : searchers) {
             String pkg = ri.activityInfo.packageName;
             if (pkg.equals(getPackageName()) || done.contains(pkg)) continue;
@@ -347,7 +365,7 @@ public class AuraSearchActivity extends Activity {
     /** One app's suggestions for the words, through the content provider its searchable config names. Null: not shared. */
     private List<Hit> ask(SearchManager sm, Source s, String q) {
         try {
-            SearchableInfo info = sm.getSearchableInfo(s.searchable);
+            SearchableInfo info = s.info != null ? s.info : sm.getSearchableInfo(s.searchable);
             if (info == null || info.getSuggestAuthority() == null) return null;
             Uri.Builder ub = new Uri.Builder().scheme("content").authority(info.getSuggestAuthority());
             if (info.getSuggestPath() != null) ub.appendEncodedPath(info.getSuggestPath());
