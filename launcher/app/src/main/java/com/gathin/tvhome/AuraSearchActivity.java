@@ -370,18 +370,24 @@ public class AuraSearchActivity extends Activity {
 
     private void open(Intent i) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        String why;
         try {
             startActivity(i);
+            return;
         } catch (ActivityNotFoundException | SecurityException e) {
-            // The app may not take it with its own name pinned: let the system choose who opens the address.
-            try {
-                if (i.getPackage() != null && i.getData() != null) { startActivity(new Intent(i).setPackage(null)); return; }
-            } catch (ActivityNotFoundException | SecurityException again) {
-                e = new ActivityNotFoundException(again.getClass().getSimpleName());
-            }
-            Toast.makeText(this, t("Не удалось открыть: ", "Cannot open: ") + e.getClass().getSimpleName()
-                    + (i.getData() == null ? t(" (нет адреса)", " (no address)") : " " + i.getData().getScheme() + "://" + i.getData().getHost()), Toast.LENGTH_LONG).show();
+            why = e.getClass().getSimpleName();
         }
+        // The app may not take it with its own name pinned: let the system choose who opens the address.
+        if (i.getPackage() != null && i.getData() != null) {
+            try {
+                startActivity(new Intent(i).setPackage(null));
+                return;
+            } catch (ActivityNotFoundException | SecurityException again) {
+                why = again.getClass().getSimpleName();
+            }
+        }
+        Toast.makeText(this, t("Не удалось открыть: ", "Cannot open: ") + why
+                + (i.getData() == null ? t(" (нет адреса)", " (no address)") : " " + i.getData().getScheme() + "://" + i.getData().getHost()), Toast.LENGTH_LONG).show();
     }
 
     // ------------------------------------------------------------------ search
