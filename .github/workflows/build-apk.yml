@@ -31,7 +31,7 @@ jobs:
       - name: Size
         run: |
           size=$(stat -c %s launcher/app/build/outputs/apk/release/app-release.apk)
-          echo "release APK: $((size / 1024)) KB (the repo's CI gate is 576 KB)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "release APK: $((size / 1024)) KB (the repo's CI gate is 640 KB)" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: aura-launcher
