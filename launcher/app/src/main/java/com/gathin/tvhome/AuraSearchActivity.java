@@ -370,6 +370,8 @@ public class AuraSearchActivity extends Activity {
 
     private void open(Intent i) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        final String colsSeen = i.getStringExtra("aura_cols");
+        i.removeExtra("aura_cols");
         String why;
         try {
             startActivity(i);
@@ -396,7 +398,8 @@ public class AuraSearchActivity extends Activity {
                 why = why + "/" + again.getClass().getSimpleName();
             }
         }
-        Toast.makeText(this, t("Не удалось открыть: ", "Cannot open: ") + why + " " + i.getAction()
+        String cols = colsSeen;
+        Toast.makeText(this, t("Не удалось открыть: ", "Cannot open: ") + why + " " + i.getAction() + (cols == null ? "" : " [" + cols + "]")
                 + (i.getData() == null ? t(" (нет адреса)", " (no address)") : " " + i.getData().getScheme() + "://" + i.getData().getHost()), Toast.LENGTH_LONG).show();
     }
 
@@ -567,7 +570,16 @@ public class AuraSearchActivity extends Activity {
                         String id = idCol >= 0 ? c.getString(idCol) : null;
                         if (d != null && id != null) d = d + "/" + Uri.encode(id);
                     }
+                    if (d == null) {
+                        // Some apps keep the deep link in a column of their own: take a value that looks like scheme://...
+                        for (int col = 0; col < c.getColumnCount() && d == null; col++) {
+                            String v;
+                            try { v = c.getString(col); } catch (RuntimeException e) { v = null; }
+                            if (v != null && v.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://\\S+$")) d = v;
+                        }
+                    }
                     if (d != null) i.setData(Uri.parse(d));
+                    i.putExtra("aura_cols", String.join(",", c.getColumnNames()));
                     if (extra >= 0 && c.getString(extra) != null) i.putExtra(SearchManager.EXTRA_DATA_KEY, c.getString(extra));
                     i.putExtra(SearchManager.USER_QUERY, q);
                     i.putExtra(SearchManager.QUERY, qcol >= 0 && c.getString(qcol) != null ? c.getString(qcol) : title);
