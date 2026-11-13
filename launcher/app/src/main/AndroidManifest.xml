@@ -55,13 +55,6 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
         </intent>
-        <!-- AURA signal sources: HDMI, AV and tuner as cards, no classic home screen. -->
-        <activity
-            android:name=".AuraInputsActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:screenOrientation="landscape" />
-
         <!-- AURA search: the apps that publish search suggestions. -->
         <intent>
             <action android:name="android.intent.action.SEARCH" />
@@ -125,6 +118,13 @@
             android:stateNotNeeded="true"
             android:excludeFromRecents="true"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
+            android:screenOrientation="landscape" />
+
+        <!-- AURA signal sources: HDMI, AV and tuner as cards, no classic home screen. -->
+        <activity
+            android:name=".AuraInputsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
             android:screenOrientation="landscape" />
 
         <!-- AURA search: asks the installed apps for suggestions and shows them under each app's name. -->
