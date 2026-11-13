@@ -59,24 +59,64 @@ final class AuraStyle {
         return c.getSharedPreferences(Config.SETTINGS_NAME, Context.MODE_PRIVATE);
     }
 
-    /** config.json's aura_ui from a pushed theme, else config.xml's aura_ui; the on-TV switch wins over both. */
-    static boolean enabled(Context c) {
-        SharedPreferences sp = prefs(c);
-        if (sp.contains(K_ENABLED)) return sp.getBoolean(K_ENABLED, false);
-        boolean value = c.getResources().getBoolean(R.bool.aura_ui);
+    /** Keys a pushed config.json can carry, with how each is stored in the preferences. */
+    private static final String[] INT_KEYS = {K_THEME, K_FOCUS, K_COLS, K_SORT, K_RADIUS, K_CLOCK};
+    private static final String[] BOOL_KEYS = {K_HINTS, K_ALL, K_ANIM, K_GREET, K_QUICK, K_WALL, K_VOICE, K_LONGOK};
+    private static final String K_SIG = "aura_overlay_sig";
+
+    /**
+     * Applies the aura_* keys of config.json (pushed from the phone app or by a theme) to the preferences, once per
+     * change of the file: the phone's latest push wins over what was chosen on the TV before it, and choices made on
+     * the TV afterwards stay until the next push. aura_ui counts as AURA's on/off switch.
+     */
+    static void syncOverlay(Context c) {
         File dir = Config.dir(c);
-        if (dir == null) return value;
+        if (dir == null) return;
         File file = new File(dir, Config.FILE_NAME);
-        if (!file.isFile() || file.length() > 256 * 1024) return value;
-        try (FileInputStream in = new FileInputStream(file)) {
-            byte[] bytes = new byte[(int) file.length()];
-            int n = 0, r;
-            while (n < bytes.length && (r = in.read(bytes, n, bytes.length - n)) > 0) n += r;
-            JSONObject json = new JSONObject(new String(bytes, 0, n, StandardCharsets.UTF_8));
-            return json.optBoolean(CONFIG_KEY, value);
-        } catch (IOException | org.json.JSONException | RuntimeException e) {
-            return value;
+        SharedPreferences sp = prefs(c);
+        String sig = file.isFile() ? file.length() + ":" + file.lastModified() : "";
+        if (sig.equals(sp.getString(K_SIG, ""))) return;
+        SharedPreferences.Editor e = sp.edit().putString(K_SIG, sig);
+        if (!sig.isEmpty() && file.length() <= 256 * 1024) {
+            try (FileInputStream in = new FileInputStream(file)) {
+                byte[] bytes = new byte[(int) file.length()];
+                int n = 0, r;
+                while (n < bytes.length && (r = in.read(bytes, n, bytes.length - n)) > 0) n += r;
+                JSONObject json = new JSONObject(new String(bytes, 0, n, StandardCharsets.UTF_8));
+                if (json.has(CONFIG_KEY)) {
+                    Object v = json.opt(CONFIG_KEY);
+                    if (v instanceof Boolean) e.putBoolean(K_ENABLED, (Boolean) v);
+                }
+                for (String key : INT_KEYS) {
+                    Object v = json.opt(key);
+                    if (v instanceof Integer) e.putInt(key, (Integer) v);
+                }
+                for (String key : BOOL_KEYS) {
+                    Object v = json.opt(key);
+                    if (v instanceof Boolean) e.putBoolean(key, (Boolean) v);
+                }
+                for (String key : new String[]{K_FAV, K_HIDDEN}) {
+                    org.json.JSONArray list = json.optJSONArray(key);
+                    if (list == null) continue;
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < list.length() && i < 128; i++) {
+                        String pkg = list.optString(i, "");
+                        if (LibraryApps.validPackage(pkg)) sb.append(sb.length() == 0 ? "" : ",").append(pkg);
+                    }
+                    e.putString(key, sb.toString());
+                }
+            } catch (IOException | org.json.JSONException | RuntimeException ex) {
+                // An unreadable file changes nothing.
+            }
         }
+        e.apply();
+    }
+
+    /** AURA's on/off: the preferences, which hold the last config.json push and the TV's own switch, else aura_ui in config.xml. */
+    static boolean enabled(Context c) {
+        syncOverlay(c);
+        SharedPreferences sp = prefs(c);
+        return sp.contains(K_ENABLED) ? sp.getBoolean(K_ENABLED, false) : c.getResources().getBoolean(R.bool.aura_ui);
     }
 
     /**
