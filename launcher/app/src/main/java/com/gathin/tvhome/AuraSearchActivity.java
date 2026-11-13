@@ -178,11 +178,17 @@ public class AuraSearchActivity extends Activity {
 
         String q = getIntent().getStringExtra(EXTRA_QUERY);
         if (q != null && !q.isEmpty()) input.setText(q);
-        else if (getIntent().getBooleanExtra(EXTRA_VOICE, false) && b == null) { listen(); setStatus(t("Слушаю…", "Listening…")); showMessage(t("Скажите название или команду", "Say a name or a command")); }
+        else if ((getIntent().getBooleanExtra(EXTRA_VOICE, false) || isAssist(getIntent())) && b == null) { listen(); setStatus(t("Слушаю…", "Listening…")); showMessage(t("Скажите название или команду", "Say a name or a command")); }
         else showMessage(t("Начните вводить или нажмите кнопку микрофона на пульте", "Start typing, or press the mic button on the remote"));
     }
 
     private SpeechRecognizer recognizer;
+
+    /** True when the system started this screen from the remote's microphone (assist) button. */
+    private static boolean isAssist(Intent i) {
+        String a = i == null ? null : i.getAction();
+        return Intent.ACTION_ASSIST.equals(a) || "android.intent.action.VOICE_ASSIST".equals(a) || "android.intent.action.SEARCH_LONG_PRESS".equals(a);
+    }
 
     /**
      * Listens with the speech recogniser's API, so no Google window opens over this screen: the words land in the

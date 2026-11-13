@@ -138,10 +138,25 @@
         <!-- AURA search: asks the installed apps for suggestions and shows them under each app's name. -->
         <activity
             android:name=".AuraSearchActivity"
-            android:exported="false"
+            android:exported="true"
             android:excludeFromRecents="true"
             android:windowSoftInputMode="stateVisible|adjustResize"
-            android:screenOrientation="landscape" />
+            android:screenOrientation="landscape">
+            <!-- The remote's microphone button: the system offers every app that declares the assist actions, and the
+                 person picks AURA with "Always". -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH_LONG_PRESS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".LauncherSettingsActivity"
