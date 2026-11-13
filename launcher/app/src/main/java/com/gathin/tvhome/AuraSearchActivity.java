@@ -369,10 +369,18 @@ public class AuraSearchActivity extends Activity {
     }
 
     private void open(Intent i) {
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
-            startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            startActivity(i);
         } catch (ActivityNotFoundException | SecurityException e) {
-            Toast.makeText(this, t("Не удалось открыть", "Cannot open"), Toast.LENGTH_SHORT).show();
+            // The app may not take it with its own name pinned: let the system choose who opens the address.
+            try {
+                if (i.getPackage() != null && i.getData() != null) { startActivity(new Intent(i).setPackage(null)); return; }
+            } catch (ActivityNotFoundException | SecurityException again) {
+                e = new ActivityNotFoundException(again.getClass().getSimpleName());
+            }
+            Toast.makeText(this, t("Не удалось открыть: ", "Cannot open: ") + e.getClass().getSimpleName()
+                    + (i.getData() == null ? t(" (нет адреса)", " (no address)") : " " + i.getData().getScheme() + "://" + i.getData().getHost()), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -537,7 +545,12 @@ public class AuraSearchActivity extends Activity {
                     if (action == null) action = Intent.ACTION_VIEW;
                     Intent i = new Intent(action).setPackage(s.pkg);
                     String d = data >= 0 ? c.getString(data) : null;
-                    if (d == null) d = info.getSuggestIntentData();
+                    if (d == null) {
+                        d = info.getSuggestIntentData();
+                        int idCol = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_DATA_ID);
+                        String id = idCol >= 0 ? c.getString(idCol) : null;
+                        if (d != null && id != null) d = d + "/" + Uri.encode(id);
+                    }
                     if (d != null) i.setData(Uri.parse(d));
                     if (extra >= 0 && c.getString(extra) != null) i.putExtra(SearchManager.EXTRA_DATA_KEY, c.getString(extra));
                     i.putExtra(SearchManager.USER_QUERY, q);
