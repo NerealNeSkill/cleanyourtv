@@ -79,6 +79,7 @@ public class AuraSearchActivity extends Activity {
         final String pkg;
         final ComponentName searchable;
         SearchableInfo info;
+        volatile String why = "";
         Source(String label, String pkg, ComponentName searchable) { this.label = label; this.pkg = pkg; this.searchable = searchable; }
     }
 
@@ -429,7 +430,7 @@ public class AuraSearchActivity extends Activity {
         Intent search = new Intent(Intent.ACTION_SEARCH).setPackage(s.pkg).putExtra(SearchManager.QUERY, q);
         if (hits == null || hits.isEmpty()) {
             if (getPackageManager().resolveActivity(search, 0) != null) {
-                row(t("Искать «", "Search \"") + q + t("» в ", "\" in ") + s.label, t("Открыть поиск в приложении", "Open the app's own search"), search, icon(s.pkg));
+                row(t("Искать «", "Search \"") + q + t("» в ", "\" in ") + s.label, t("Открыть поиск в приложении", "Open the app's own search") + (s.why.isEmpty() ? "" : " · " + s.why), search, icon(s.pkg));
             }
         }
     }
@@ -442,7 +443,7 @@ public class AuraSearchActivity extends Activity {
     private List<Hit> ask(SearchManager sm, Source s, String q) {
         try {
             SearchableInfo info = s.info != null ? s.info : sm.getSearchableInfo(s.searchable);
-            if (info == null || info.getSuggestAuthority() == null) return null;
+            if (info == null || info.getSuggestAuthority() == null) { s.why = t("подсказки не публикуются", "no suggestions published"); return null; }
             Uri.Builder ub = new Uri.Builder().scheme("content").authority(info.getSuggestAuthority());
             if (info.getSuggestPath() != null) ub.appendEncodedPath(info.getSuggestPath());
             ub.appendPath(SearchManager.SUGGEST_URI_PATH_QUERY);
@@ -451,7 +452,8 @@ public class AuraSearchActivity extends Activity {
             if (selection != null) args = new String[]{q};
             else ub.appendPath(q);
             Cursor c = getContentResolver().query(ub.build(), null, selection, args, null);
-            if (c == null) return null;
+            if (c == null) { s.why = t("подсказок нет", "no suggestions"); return null; }
+            if (c.getCount() == 0) s.why = t("ничего не нашлось", "nothing found");
             List<Hit> out = new ArrayList<>();
             try {
                 int t1 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_TEXT_1), t2 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_TEXT_2);
@@ -476,7 +478,11 @@ public class AuraSearchActivity extends Activity {
                 c.close();
             }
             return out;
+        } catch (SecurityException e) {
+            s.why = t("нет доступа к подсказкам", "no access to its suggestions");
+            return null;
         } catch (RuntimeException e) {
+            s.why = t("ошибка: ", "error: ") + e.getClass().getSimpleName();
             return null;
         }
     }
