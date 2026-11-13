@@ -71,6 +71,7 @@ public class AuraSearchActivity extends Activity {
     private static final class Hit {
         final String title, sub;
         final Intent intent;
+        Drawable poster;
         Hit(String title, String sub, Intent intent) { this.title = title; this.sub = sub; this.intent = intent; }
     }
 
@@ -319,14 +320,17 @@ public class AuraSearchActivity extends Activity {
 
     private void row(String title, String sub, final Intent intent) { row(title, sub, intent, null); }
 
-    private void row(String title, String sub, final Intent intent, Drawable icon) {
+    private void row(String title, String sub, final Intent intent, Drawable icon) { row(title, sub, intent, icon, false); }
+
+    private void row(String title, String sub, final Intent intent, Drawable icon, boolean tall) {
         LinearLayout r = new LinearLayout(this);
         r.setOrientation(LinearLayout.HORIZONTAL);
         r.setGravity(Gravity.CENTER_VERTICAL);
         if (icon != null) {
             ImageView iv = new ImageView(this);
             iv.setImageDrawable(icon);
-            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dp(40), dp(40));
+            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(tall ? dp(46) : dp(40), tall ? dp(64) : dp(40));
+            if (tall) iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
             ip.rightMargin = dp(14);
             r.addView(iv, ip);
         }
@@ -437,13 +441,39 @@ public class AuraSearchActivity extends Activity {
         if (hits != null && !hits.isEmpty()) {
             header(s.label);
             Drawable ic = icon(s.pkg);
-            for (Hit h : hits) row(h.title, h.sub, h.intent, ic);
+            for (Hit h : hits) row(h.title, h.sub, h.intent, h.poster != null ? h.poster : ic, h.poster != null);
         }
         Intent search = new Intent(Intent.ACTION_SEARCH).setPackage(s.pkg).putExtra(SearchManager.QUERY, q);
         if (hits == null || hits.isEmpty()) {
             if (getPackageManager().resolveActivity(search, 0) != null) {
                 row(t("Искать «", "Search \"") + q + t("» в ", "\" in ") + s.label, t("Открыть поиск в приложении", "Open the app's own search") + (s.why.isEmpty() ? "" : " · " + s.why), search, icon(s.pkg));
             }
+        }
+    }
+
+    /**
+     * The picture a suggestion names in its icon column: a resource number of the app, or a content or resource URI
+     * the app serves. Web addresses are not fetched: the launcher has no network permission.
+     */
+    private Drawable poster(String ref, String pkg) {
+        if (ref == null || ref.isEmpty()) return null;
+        try {
+            if (ref.matches("\\d+")) return getPackageManager().getResourcesForApplication(pkg).getDrawable(Integer.parseInt(ref), null);
+            Uri u = Uri.parse(ref);
+            String scheme = u.getScheme();
+            if (!"content".equals(scheme) && !"android.resource".equals(scheme)) return null;
+            android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
+            o.inSampleSize = 2;
+            java.io.InputStream in = getContentResolver().openInputStream(u);
+            if (in == null) return null;
+            try {
+                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(in, null, o);
+                return bmp == null ? null : new android.graphics.drawable.BitmapDrawable(getResources(), bmp);
+            } finally {
+                in.close();
+            }
+        } catch (Exception | OutOfMemoryError e) {
+            return null;
         }
     }
 
@@ -471,6 +501,7 @@ public class AuraSearchActivity extends Activity {
                 int t1 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_TEXT_1), t2 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_TEXT_2);
                 int act = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_ACTION), data = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_DATA);
                 int extra = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_EXTRA_DATA), qcol = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_QUERY);
+                int ic1 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_ICON_1), ic2 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_ICON_2);
                 while (c.moveToNext() && out.size() < PER_APP) {
                     String title = t1 >= 0 ? c.getString(t1) : null;
                     if (title == null || title.isEmpty()) continue;
@@ -484,7 +515,11 @@ public class AuraSearchActivity extends Activity {
                     if (extra >= 0 && c.getString(extra) != null) i.putExtra(SearchManager.EXTRA_DATA_KEY, c.getString(extra));
                     i.putExtra(SearchManager.USER_QUERY, q);
                     i.putExtra(SearchManager.QUERY, qcol >= 0 && c.getString(qcol) != null ? c.getString(qcol) : title);
-                    out.add(new Hit(title, t2 >= 0 ? c.getString(t2) : null, i));
+                    Hit hit = new Hit(title, t2 >= 0 ? c.getString(t2) : null, i);
+                    String ref = ic1 >= 0 ? c.getString(ic1) : null;
+                    if ((ref == null || ref.isEmpty()) && ic2 >= 0) ref = c.getString(ic2);
+                    hit.poster = poster(ref, s.pkg);
+                    out.add(hit);
                 }
             } finally {
                 c.close();
