@@ -20,6 +20,11 @@
          list (ServiceRepair). Granted with pm grant by build-and-install when a helper is enabled. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <!-- AURA search: lets the system hand this app the search-suggestion providers it keeps for global search. A
+         system-level permission: it is only given when the system allows it (for example `pm grant` over adb), and
+         the search screen works without it. -->
+    <uses-permission android:name="android.permission.GLOBAL_SEARCH"
+        tools:ignore="ProtectedPermissions" />
     <!-- YaOS (Yandex TV OS): HDMI, AV and the tuner all play in com.yandex.tv.live, whose activities require
          this permission (protection level normal, so it is granted at install). Ignored on other TVs. -->
     <uses-permission android:name="yandex.tv.permission.ACCESS_TV_SOURCE" />
