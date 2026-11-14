@@ -795,6 +795,15 @@ public class AuraActivity extends Activity {
             item.addView(text(names[i], 12, pal.text, i == category), lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             item.addView(glyph(AuraStyle.G_ARROW, pal.sub, 16));
             item.setOnFocusChangeListener((v, focused) -> { if (focused && category != index) { category = index; showPanel(); markCategories(list); } });
+            // Right from a section goes to the first setting of the panel, not to the one level with the section.
+            item.setOnKeyListener((v, keyCode, ev) -> {
+                if (keyCode != KeyEvent.KEYCODE_DPAD_RIGHT) return false;
+                if (ev.getAction() == KeyEvent.ACTION_DOWN) {
+                    View f = panelHolder.getChildAt(0) instanceof ViewGroup ? firstFocusable((ViewGroup) panelHolder.getChildAt(0)) : null;
+                    if (f != null) f.requestFocus();
+                }
+                return true;
+            });
             list.addView(item, lp(ViewGroup.LayoutParams.MATCH_PARENT, dp(38), 0, 0, i == 0 ? 0 : 3, 0, 0));
         }
         split.addView(list, lp(dp(210), ViewGroup.LayoutParams.WRAP_CONTENT, 0));
@@ -819,6 +828,18 @@ public class AuraActivity extends Activity {
         c.addView(split);
         showPanel();
         return c;
+    }
+
+    private static View firstFocusable(ViewGroup g) {
+        for (int i = 0; i < g.getChildCount(); i++) {
+            View c = g.getChildAt(i);
+            if (c.isFocusable() && c.getVisibility() == View.VISIBLE) return c;
+            if (c instanceof ViewGroup) {
+                View f = firstFocusable((ViewGroup) c);
+                if (f != null) return f;
+            }
+        }
+        return null;
     }
 
     /** Repaints the section list so the highlighted row follows {@code category}. */
