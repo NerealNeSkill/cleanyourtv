@@ -93,6 +93,8 @@ public class AuraActivity extends Activity {
         sp.edit().putBoolean(AuraStyle.K_STARTED, true).putBoolean(AuraStyle.K_OK, false)
                 .putInt(AuraStyle.K_FAILS, fails).commit();
         density = getResources().getDisplayMetrics().density;
+        // The launcher's own wallpapers go into the person's Wallpapers folder at the first start (off the main thread).
+        new Thread(() -> AuraWallpapers.seed(getApplicationContext())).start();
         cfg = Config.load(this);
         if (MainActivity.ACTION_LAUNCHER_SETTINGS.equals(getIntent().getAction())) page = SETTINGS;
         getWindow().setBackgroundDrawable(null);
