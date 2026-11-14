@@ -56,7 +56,7 @@ public class AuraSearchActivity extends Activity {
     private static final int VOICE_REQUEST = 52;
     private static final int PER_APP = 8;
     // Apps with online sources (Lazy, Lampa, KinoTrend) can need several seconds; their rows appear as they answer.
-    private static final long WAIT_MS = 9000;
+    private static final long WAIT_MS = 20000;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService pool = Executors.newFixedThreadPool(16);
@@ -688,7 +688,7 @@ public class AuraSearchActivity extends Activity {
             });
             pool.execute(() -> {
                 List<Hit> hits;
-                try { hits = f.get(WAIT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { f.cancel(true); hits = null; }
+                try { hits = f.get(WAIT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { f.cancel(true); hits = null; if (s.why.isEmpty()) s.why = t("не успело ответить", "did not answer in time"); }
                 final List<Hit> out = hits;
                 ui.post(() -> { if (mine == generation) addSource(s, out, query); });
             });
@@ -816,6 +816,24 @@ public class AuraSearchActivity extends Activity {
         return r;
     }
 
+    /**
+     * The authority the app's search config names, unless no provider answers to it (an app whose config and provider
+     * disagree): then the app's own search provider, found among its declared providers by its name.
+     */
+    private String providerAuthority(String pkg, String named) {
+        PackageManager pm = getPackageManager();
+        try {
+            if (pm.resolveContentProvider(named, 0) != null) return named;
+            android.content.pm.PackageInfo pi = pm.getPackageInfo(pkg, PackageManager.GET_PROVIDERS);
+            if (pi.providers != null) for (android.content.pm.ProviderInfo p : pi.providers) {
+                if (p.authority == null || !p.exported) continue;
+                String a = p.authority.split(";")[0];
+                if (a.endsWith(".atvsearch") || p.name.endsWith("SearchProvider")) return a;
+            }
+        } catch (PackageManager.NameNotFoundException | RuntimeException ignored) { }
+        return named;
+    }
+
     /** A column as text; a column of another type (a blob icon, a number) reads as nothing instead of failing the whole answer. */
     private static String str(Cursor c, int i) {
         if (i < 0) return null;
@@ -826,7 +844,7 @@ public class AuraSearchActivity extends Activity {
         try {
             SearchableInfo info = s.info != null ? s.info : sm.getSearchableInfo(s.searchable);
             if (info == null || info.getSuggestAuthority() == null) { s.why = t("подсказки не публикуются", "no suggestions published"); return null; }
-            Uri.Builder ub = new Uri.Builder().scheme("content").authority(info.getSuggestAuthority());
+            Uri.Builder ub = new Uri.Builder().scheme("content").authority(providerAuthority(s.pkg, info.getSuggestAuthority()));
             if (info.getSuggestPath() != null) ub.appendEncodedPath(info.getSuggestPath());
             ub.appendPath(SearchManager.SUGGEST_URI_PATH_QUERY);
             String selection = info.getSuggestSelection();
@@ -894,6 +912,7 @@ public class AuraSearchActivity extends Activity {
                     }
                     out.add(hit);
                 }
+                if (out.isEmpty() && c.getCount() > 0) s.why = t("строк: " + c.getCount() + ", прочитать не удалось", "rows: " + c.getCount() + ", unreadable");
             } finally {
                 c.close();
             }
