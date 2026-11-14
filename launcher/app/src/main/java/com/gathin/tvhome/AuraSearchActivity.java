@@ -448,7 +448,7 @@ public class AuraSearchActivity extends Activity {
     private View resultCard(Source s, Hit h) {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
-        c.setPadding(dp(6), dp(6), dp(6), dp(8));
+        c.setPadding(dp(6), dp(6), dp(6), dp(10));
         c.setFocusable(true);
         c.setClickable(true);
         c.setBackground(AuraStyle.card(pal, dp(12), false));
@@ -457,13 +457,13 @@ public class AuraSearchActivity extends Activity {
         boolean cover = h.poster != null || h.posterUrl != null;
         iv.setImageDrawable(h.poster != null ? h.poster : icon(s.pkg));
         iv.setScaleType(cover ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.CENTER_INSIDE);
-        c.addView(iv, new LinearLayout.LayoutParams(dp(120), dp(cover ? 170 : 90)));
+        c.addView(iv, new LinearLayout.LayoutParams(dp(120), dp(cover ? 140 : 90)));
         if (h.posterUrl != null) loadCover(h.posterUrl, iv);
         TextView a = new TextView(this);
         a.setText(h.title);
         a.setTextColor(pal.text);
         a.setTextSize(14);
-        a.setMaxLines(2);
+        a.setMaxLines(1);
         a.setEllipsize(android.text.TextUtils.TruncateAt.END);
         a.setPadding(dp(2), dp(6), dp(2), 0);
         c.addView(a);
@@ -478,7 +478,7 @@ public class AuraSearchActivity extends Activity {
             b.setText(sub);
             b.setTextColor(pal.sub);
             b.setTextSize(11);
-            b.setMaxLines(2);
+            b.setMaxLines(1);
             b.setEllipsize(android.text.TextUtils.TruncateAt.END);
             b.setPadding(dp(2), dp(2), dp(2), 0);
             c.addView(b);
@@ -661,7 +661,8 @@ public class AuraSearchActivity extends Activity {
             scroller.setClipToPadding(false);
             LinearLayout strip = new LinearLayout(this);
             strip.setOrientation(LinearLayout.HORIZONTAL);
-            strip.setPadding(dp(10), dp(6), dp(10), dp(6));
+            strip.setPadding(dp(10), dp(8), dp(10), dp(12));
+            strip.setGravity(Gravity.TOP);
             for (Hit h : hits) strip.addView(resultCard(s, h), cardParams());
             scroller.addView(strip);
             line.addView(scroller, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
