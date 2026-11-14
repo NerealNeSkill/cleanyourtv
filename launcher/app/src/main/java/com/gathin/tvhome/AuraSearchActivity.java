@@ -318,9 +318,47 @@ public class AuraSearchActivity extends Activity {
     private void heard(Bundle p, boolean last) {
         List<String> words = p == null ? null : p.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
         if (words == null || words.isEmpty()) return;
+        // "Open YouTube": an app name after an open word starts that app instead of searching for the words.
+        if (last) for (String w : words) if (openByVoice(w)) return;
         input.setText(words.get(0));
         input.setSelection(input.length());
         setStatus(last ? t("Ищу…", "Searching…") : t("Слушаю…", "Listening…"));
+    }
+
+    private static String plain(String x) {
+        return x.toLowerCase(Locale.getDefault()).replace('ё', 'е').replaceAll("[^\\p{L}\\p{N} ]", " ").replaceAll("\\s+", " ").trim();
+    }
+
+    /** True if the words are a command to open an installed app (open / launch / start / run + its name) and it was started. */
+    private boolean openByVoice(String words) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("^(открой|открыть|запусти|запустить|включи|включить|зайди в|open|launch|start|run)\\s+(?:приложение\\s+)?(.+)$")
+                .matcher(plain(words));
+        if (!m.matches()) return false;
+        String name = m.group(2).trim();
+        if (name.equals("ютюб") || name.equals("ютуб") || name.equals("you tube")) name = "youtube";
+        PackageManager pm = getPackageManager();
+        List<ResolveInfo> apps = pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), 0);
+        apps.addAll(pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0));
+        String bestPkg = null;
+        int best = 0;
+        for (ResolveInfo ri : apps) {
+            String pkg = ri.activityInfo.packageName;
+            if (pkg.equals(getPackageName())) continue;
+            String label = plain(String.valueOf(ri.loadLabel(pm)));
+            int score = label.equals(name) ? 3 : label.startsWith(name) ? 2 : label.contains(name) || (name.length() > 3 && name.contains(label) && label.length() > 3) ? 1 : 0;
+            if (score > best) { best = score; bestPkg = pkg; }
+        }
+        if (bestPkg == null) return false;
+        Intent go = pm.getLeanbackLaunchIntentForPackage(bestPkg);
+        if (go == null) go = pm.getLaunchIntentForPackage(bestPkg);
+        if (go == null) return false;
+        try {
+            startActivity(go.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /** The TV's speech recogniser in its own window, its words land in this screen's search line. */
@@ -342,6 +380,7 @@ public class AuraSearchActivity extends Activity {
         if (request != VOICE_REQUEST) return;
         List<String> spoken = result == RESULT_OK && data != null ? data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS) : null;
         if (spoken == null || spoken.isEmpty()) { showMessage(t("Не расслышал. Введите слова или попробуйте ещё раз", "Didn't catch that. Type the words or try again")); return; }
+        for (String w : spoken) if (openByVoice(w)) return;
         input.setText(spoken.get(0));
         input.setSelection(input.length());
     }
