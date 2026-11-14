@@ -368,8 +368,11 @@ public class AuraActivity extends Activity {
     }
 
     private void addWallpaper() {
-        File dir = Config.dir(this);
-        File file = dir == null ? null : new File(dir, Config.WALLPAPER_NAME);
+        File file = AuraWallpapers.pick(this, sp.getInt(AuraStyle.K_OWN, 0));
+        if (file == null) {
+            File dir = Config.dir(this);
+            file = dir == null ? null : new File(dir, Config.WALLPAPER_NAME);
+        }
         if (file == null || !file.isFile()) return;
         try {
             BitmapFactory.Options o = new BitmapFactory.Options();
@@ -911,7 +914,19 @@ public class AuraActivity extends Activity {
         toggle(p, AuraStyle.K_HINTS, true, t("Подсказки управления на экране", "On-screen control hints"), t("Показывать действия кнопок пульта", "Show what the remote buttons do"), true);
         choice(p, AuraStyle.K_RADIUS, 1, t("Скругление углов", "Corner roundness"), t("Форма карточек и плиток", "Shape of cards and tiles"),
                 new String[]{t("Малое", "Small"), t("Среднее", "Medium"), t("Большое", "Large")}, true);
-        toggle(p, AuraStyle.K_WALL, true, t("Обои темы", "Theme wallpaper"), t("Показывать wallpaper.jpg из темы, если он есть", "Show the theme's wallpaper.jpg when it has one"), true);
+        List<File> own = AuraWallpapers.list(this);
+        if (own.isEmpty()) {
+            File folder = AuraWallpapers.appFolder(this);
+            action(p, "ownwall", t("Свои обои", "Your wallpapers"),
+                    t("Положите картинки в папку: ", "Put pictures in: ") + (folder == null ? "Android/data/<app>/files/Wallpapers" : folder.getPath().replace("/storage/emulated/0/", "")),
+                    "", () -> { });
+        } else {
+            String[] names = new String[Math.min(own.size(), 40) + 1];
+            names[0] = t("Из темы", "Theme's");
+            for (int i = 1; i < names.length; i++) names[i] = own.get(i - 1).getName();
+            choice(p, AuraStyle.K_OWN, 0, t("Свои обои", "Your wallpapers"), t("OK листает картинки из папки", "OK steps through the pictures of your folder"), names, true);
+        }
+        toggle(p, AuraStyle.K_WALL, true, t("Показывать обои", "Show wallpaper"), t("Обои темы или ваша картинка из папки", "The theme's wallpaper or your own picture"), true);
         toggle(p, AuraStyle.K_ANIM, true, t("Анимации", "Animations"), t("Плавное появление страниц; выключите на слабых ТВ", "Soft page fades; turn off on slow TVs"), false);
     }
 

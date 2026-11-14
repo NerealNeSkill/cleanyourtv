@@ -40,6 +40,8 @@ final class AuraStyle {
     static final String K_GREET = "aura_greeting";
     static final String K_QUICK = "aura_quick";
     static final String K_WALL = "aura_wallpaper";
+    /** 0: the theme's wallpaper; 1..n: the nth picture of the person's own wallpaper folder (AuraWallpapers). */
+    static final String K_OWN = "aura_own_wall";
     static final String K_VOICE = "aura_voice";
     static final String K_LONGOK = "aura_long_ok";
     static final String K_FAV = "aura_fav";
