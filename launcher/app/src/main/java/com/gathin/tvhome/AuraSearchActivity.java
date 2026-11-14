@@ -56,7 +56,7 @@ public class AuraSearchActivity extends Activity {
     private static final int VOICE_REQUEST = 52;
     private static final int PER_APP = 8;
     // Apps with online sources (Lazy, Lampa, KinoTrend) can need several seconds; their rows appear as they answer.
-    private static final long WAIT_MS = 20000;
+    private static final long WAIT_MS = 75000;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService pool = Executors.newFixedThreadPool(16);
@@ -672,6 +672,9 @@ public class AuraSearchActivity extends Activity {
         }
         if (sources.isEmpty() && !header && !other) showMessage(t("Ничего не найдено", "Nothing found"));
         final String query = q;
+        waiting.clear();
+        for (Source s : sources) waiting.add(s.label);
+        showWaiting(q);
         for (final Source s : sources) {
             Future<List<Hit>> f = pool.submit(() -> {
                 List<Hit> first = ask(sm, s, query);
@@ -690,9 +693,20 @@ public class AuraSearchActivity extends Activity {
                 List<Hit> hits;
                 try { hits = f.get(WAIT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { f.cancel(true); hits = null; if (s.why.isEmpty()) s.why = t("не успело ответить", "did not answer in time"); }
                 final List<Hit> out = hits;
-                ui.post(() -> { if (mine == generation) addSource(s, out, query); });
+                ui.post(() -> { if (mine == generation) { waiting.remove(s.label); showWaiting(query); addSource(s, out, query); } });
             });
         }
+    }
+
+    /** The apps still asked for results (Lazy asks all its sources and can take a long while): shown under the headline. */
+    private final List<String> waiting = new ArrayList<>();
+
+    private void showWaiting(String q) {
+        if (waiting.isEmpty()) { setStatus("«" + q + "»"); return; }
+        StringBuilder b = new StringBuilder("«" + q + "» · " + t("ждём: ", "waiting for: "));
+        for (int i = 0; i < waiting.size() && i < 3; i++) b.append(i == 0 ? "" : ", ").append(waiting.get(i));
+        if (waiting.size() > 3) b.append(" +").append(waiting.size() - 3);
+        setStatus(b.toString());
     }
 
     private void addSource(Source s, List<Hit> hits, String q) {
