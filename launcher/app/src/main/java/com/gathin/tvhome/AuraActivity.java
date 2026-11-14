@@ -921,10 +921,10 @@ public class AuraActivity extends Activity {
                     t("Положите картинки в папку: ", "Put pictures in: ") + (folder == null ? "Android/data/<app>/files/Wallpapers" : folder.getPath().replace("/storage/emulated/0/", "")),
                     "", () -> { });
         } else {
-            String[] names = new String[Math.min(own.size(), 40) + 1];
-            names[0] = t("Из темы", "Theme's");
-            for (int i = 1; i < names.length; i++) names[i] = own.get(i - 1).getName();
-            choice(p, AuraStyle.K_OWN, 0, t("Свои обои", "Your wallpapers"), t("OK листает картинки из папки", "OK steps through the pictures of your folder"), names, true);
+            String[] ownNames = new String[Math.min(own.size(), 40) + 1];
+            ownNames[0] = t("Из темы", "Theme's");
+            for (int i = 1; i < ownNames.length; i++) ownNames[i] = own.get(i - 1).getName();
+            choice(p, AuraStyle.K_OWN, 0, t("Свои обои", "Your wallpapers"), t("OK листает картинки из папки", "OK steps through the pictures of your folder"), ownNames, true);
         }
         toggle(p, AuraStyle.K_WALL, true, t("Показывать обои", "Show wallpaper"), t("Обои темы или ваша картинка из папки", "The theme's wallpaper or your own picture"), true);
         toggle(p, AuraStyle.K_ANIM, true, t("Анимации", "Animations"), t("Плавное появление страниц; выключите на слабых ТВ", "Soft page fades; turn off on slow TVs"), false);
