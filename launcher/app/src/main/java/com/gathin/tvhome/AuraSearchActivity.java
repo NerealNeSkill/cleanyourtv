@@ -325,6 +325,19 @@ public class AuraSearchActivity extends Activity {
         setStatus(last ? t("Ищу…", "Searching…") : t("Слушаю…", "Listening…"));
     }
 
+    /** A rough Latin spelling of Russian words, so "нум", "лейзи" or "кинотренд" meet the apps named NUM, Lazy, KinoTrend. */
+    private static String translit(String x) {
+        String[] ru = {"а","б","в","г","д","е","ж","з","и","й","к","л","м","н","о","п","р","с","т","у","ф","х","ц","ч","ш","щ","ы","э","ю","я","ь","ъ"};
+        String[] la = {"a","b","v","g","d","e","zh","z","i","y","k","l","m","n","o","p","r","s","t","u","f","h","c","ch","sh","sh","y","e","u","ya","",""};
+        StringBuilder b = new StringBuilder();
+        for (char c : plain(x).toCharArray()) {
+            int i = -1;
+            for (int k = 0; k < ru.length; k++) if (ru[k].charAt(0) == c) { i = k; break; }
+            b.append(i >= 0 ? la[i] : String.valueOf(c));
+        }
+        return b.toString().replace("ei", "ey").replace(" ", "");
+    }
+
     private static String plain(String x) {
         return x.toLowerCase(Locale.getDefault()).replace('ё', 'е').replaceAll("[^\\p{L}\\p{N} ]", " ").replaceAll("\\s+", " ").trim();
     }
@@ -336,7 +349,8 @@ public class AuraSearchActivity extends Activity {
                 .matcher(plain(words));
         if (!m.matches()) return false;
         String name = m.group(2).trim();
-        if (name.equals("ютюб") || name.equals("ютуб") || name.equals("you tube")) name = "youtube";
+        if (name.equals("ютюб") || name.equals("ютуб") || name.equals("ютьюб") || name.equals("you tube")) name = "youtube";
+        final String latin = translit(name);
         PackageManager pm = getPackageManager();
         List<ResolveInfo> apps = pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), 0);
         apps.addAll(pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0));
@@ -346,7 +360,10 @@ public class AuraSearchActivity extends Activity {
             String pkg = ri.activityInfo.packageName;
             if (pkg.equals(getPackageName())) continue;
             String label = plain(String.valueOf(ri.loadLabel(pm)));
-            int score = label.equals(name) ? 3 : label.startsWith(name) ? 2 : label.contains(name) || (name.length() > 3 && name.contains(label) && label.length() > 3) ? 1 : 0;
+            String lat = translit(label);
+            int score = label.equals(name) || lat.equals(latin) ? 3 : label.startsWith(name) || lat.startsWith(latin) ? 2
+                    : label.contains(name) || (name.length() > 3 && name.contains(label) && label.length() > 3)
+                    || (latin.length() > 3 && lat.startsWith(latin.substring(0, latin.length() - 1))) ? 1 : 0;
             if (score > best) { best = score; bestPkg = pkg; }
         }
         if (bestPkg == null) return false;
