@@ -195,7 +195,7 @@ public class AuraSearchActivity extends Activity {
             @Override public void onTextChanged(CharSequence s, int a, int c, int d) { }
             @Override public void afterTextChanged(Editable e) { schedule(e.toString()); }
         });
-        input.setOnEditorActionListener((v, action, ev) -> { schedule(v.getText().toString()); return false; });
+        input.setOnEditorActionListener((v, action, ev) -> { if (openByVoice(v.getText().toString())) return true; schedule(v.getText().toString()); return false; });
         bar.addView(input, new LinearLayout.LayoutParams(0, dp(40), 1f));
         LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
         barLp.topMargin = dp(8);
