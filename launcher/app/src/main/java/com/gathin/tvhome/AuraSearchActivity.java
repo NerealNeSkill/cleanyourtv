@@ -96,41 +96,47 @@ public class AuraSearchActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackground(AuraStyle.background(pal));
-        root.setPadding(dp(48), dp(28), dp(48), dp(20));
+        root.setPadding(dp(48), dp(16), dp(48), dp(12));
 
         panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setGravity(Gravity.CENTER_HORIZONTAL);
-        panel.setPadding(dp(20), dp(14), dp(20), dp(14));
-        panel.setBackground(AuraStyle.shape(AuraStyle.alpha(pal.card, 210), pal.border, dp(28), 1));
+        panel.setPadding(dp(16), dp(8), dp(16), dp(8));
+        panel.setBackground(AuraStyle.shape(AuraStyle.alpha(pal.card, 210), pal.border, dp(22), 1));
+        // Compact header: the mic, the headline and the wave on one line, the shortcuts under them, so the results get the room.
+        LinearLayout top = new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
         FrameLayout mic = new FrameLayout(this);
-        mic.setBackground(AuraStyle.shape(pal.accent, 0, dp(32), 0));
+        mic.setBackground(AuraStyle.shape(pal.accent, 0, dp(22), 0));
         ImageView micGlyph = new ImageView(this);
         micGlyph.setImageDrawable(new AuraStyle.Glyph(AuraStyle.G_MIC, pal.onAccent));
-        mic.addView(micGlyph, new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
+        mic.addView(micGlyph, new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
         // The mic is a button: press OK on it (Up from the search line) to speak without going back to the home screen.
         mic.setFocusable(true);
         mic.setClickable(true);
         mic.setOnClickListener(v -> { setStatus(t("Слушаю…", "Listening…")); showMessage(t("Скажите название или команду", "Say a name or a command")); listen(); });
-        mic.setOnFocusChangeListener((v, focus) -> mic.setBackground(AuraStyle.shape(pal.accent, focus ? pal.text : 0, dp(32), focus ? 3 : 0)));
-        panel.addView(mic, new LinearLayout.LayoutParams(dp(64), dp(64)));
+        mic.setOnFocusChangeListener((v, focus) -> mic.setBackground(AuraStyle.shape(pal.accent, focus ? pal.text : 0, dp(22), focus ? 3 : 0)));
+        top.addView(mic, new LinearLayout.LayoutParams(dp(44), dp(44)));
         status = new TextView(this);
         status.setTextColor(pal.text);
-        status.setTextSize(24);
-        status.setGravity(Gravity.CENTER);
-        status.setPadding(0, dp(6), 0, dp(2));
-        panel.addView(status);
+        status.setTextSize(18);
+        status.setGravity(Gravity.CENTER_VERTICAL);
+        status.setSingleLine(true);
+        status.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        status.setPadding(dp(14), 0, dp(14), 0);
+        top.addView(status, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         LinearLayout wave = new LinearLayout(this);
         wave.setGravity(Gravity.CENTER);
         bars = new View[level.length];
         for (int i = 0; i < bars.length; i++) {
             bars[i] = new View(this);
             bars[i].setBackground(AuraStyle.shape(AuraStyle.alpha(pal.accent, 200), 0, dp(2), 0));
-            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(5), dp(4));
-            bp.leftMargin = bp.rightMargin = dp(3);
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(4), dp(3));
+            bp.leftMargin = bp.rightMargin = dp(2);
             wave.addView(bars[i], bp);
         }
-        panel.addView(wave, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)));
+        top.addView(wave, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(28)));
+        panel.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout chips = new LinearLayout(this);
         chips.setGravity(Gravity.CENTER);
         String[] ideas = {t("YouTube", "YouTube"), t("Настройки", "Settings"), t("Фильмы", "Films"), t("Музыка", "Music")};
@@ -141,7 +147,7 @@ public class AuraSearchActivity extends Activity {
             chip.setTextSize(13);
             chip.setFocusable(true);
             chip.setClickable(true);
-            chip.setPadding(dp(16), dp(7), dp(16), dp(7));
+            chip.setPadding(dp(14), dp(4), dp(14), dp(4));
             chip.setBackground(AuraStyle.card(pal, dp(10), false));
             chip.setOnFocusChangeListener((v, f) -> v.setBackground(AuraStyle.card(pal, dp(10), f)));
             chip.setOnClickListener(v -> { input.setText(idea); input.setSelection(input.length()); });
@@ -155,7 +161,7 @@ public class AuraSearchActivity extends Activity {
         home.setTextSize(13);
         home.setFocusable(true);
         home.setClickable(true);
-        home.setPadding(dp(16), dp(7), dp(16), dp(7));
+        home.setPadding(dp(14), dp(4), dp(14), dp(4));
         home.setBackground(AuraStyle.shape(pal.accent, 0, dp(10), 0));
         home.setOnFocusChangeListener((v, f) -> v.setBackground(AuraStyle.shape(pal.accent, f ? pal.text : 0, dp(10), f ? 3 : 0)));
         home.setOnClickListener(v -> {
@@ -182,7 +188,7 @@ public class AuraSearchActivity extends Activity {
         input.setHint(t("Что найти? Приложение, фильм, видео…", "What to find? An app, a film, a video…"));
         input.setHintTextColor(pal.sub);
         input.setTextColor(pal.text);
-        input.setTextSize(18);
+        input.setTextSize(16);
         input.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         input.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int a, int c, int d) { }
@@ -190,14 +196,14 @@ public class AuraSearchActivity extends Activity {
             @Override public void afterTextChanged(Editable e) { schedule(e.toString()); }
         });
         input.setOnEditorActionListener((v, action, ev) -> { schedule(v.getText().toString()); return false; });
-        bar.addView(input, new LinearLayout.LayoutParams(0, dp(52), 1f));
-        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
-        barLp.topMargin = dp(12);
+        bar.addView(input, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        barLp.topMargin = dp(8);
         root.addView(bar, barLp);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setPadding(0, dp(14), 0, 0);
+        scroll.setPadding(0, dp(8), 0, 0);
         results = new LinearLayout(this);
         results.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(results, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -298,7 +304,7 @@ public class AuraSearchActivity extends Activity {
         level[level.length - 1] = v;
         for (int i = 0; i < bars.length; i++) {
             ViewGroup.LayoutParams lp = bars[i].getLayoutParams();
-            lp.height = dp(4) + Math.round(level[i] * dp(34));
+            lp.height = dp(3) + Math.round(level[i] * dp(24));
             bars[i].setLayoutParams(lp);
         }
     }
