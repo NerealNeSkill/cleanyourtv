@@ -48,6 +48,7 @@ final class AuraStyle {
     static final String K_HIDDEN = "aura_hidden";
     static final String K_STARTED = "aura_started";
     static final String K_OK = "aura_ok";
+    static final String K_FAILS = "aura_fails";
     private static final String K_BUILD = "aura_build";
     private static final String CONFIG_KEY = "aura_ui";
 
@@ -133,10 +134,11 @@ final class AuraStyle {
         try {
             long built = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).lastUpdateTime;
             if (sp.getLong(K_BUILD, 0) != built) {
-                sp.edit().putLong(K_BUILD, built).putBoolean(K_STARTED, false).putBoolean(K_OK, true).commit();
+                sp.edit().putLong(K_BUILD, built).putBoolean(K_STARTED, false).putBoolean(K_OK, true).putInt(K_FAILS, 0).commit();
             }
         } catch (Exception ignored) { }
-        return !(sp.getBoolean(K_STARTED, false) && !sp.getBoolean(K_OK, true));
+        // One killed start (low memory, a force stop) is not a crash loop: Home falls back only after three in a row.
+        return !(sp.getBoolean(K_STARTED, false) && !sp.getBoolean(K_OK, true) && sp.getInt(K_FAILS, 0) >= 2);
     }
 
     /** The colours of one theme. */

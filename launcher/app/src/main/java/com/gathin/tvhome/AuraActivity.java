@@ -88,7 +88,10 @@ public class AuraActivity extends Activity {
         super.onCreate(state);
         sp = AuraStyle.prefs(this);
         // Cleared in onResume once the first frame is up: a crash before that sends Home back to the classic screen.
-        sp.edit().putBoolean(AuraStyle.K_STARTED, true).putBoolean(AuraStyle.K_OK, false).commit();
+        int fails = sp.getBoolean(AuraStyle.K_STARTED, false) && !sp.getBoolean(AuraStyle.K_OK, true)
+                ? sp.getInt(AuraStyle.K_FAILS, 0) + 1 : 0;
+        sp.edit().putBoolean(AuraStyle.K_STARTED, true).putBoolean(AuraStyle.K_OK, false)
+                .putInt(AuraStyle.K_FAILS, fails).commit();
         density = getResources().getDisplayMetrics().density;
         cfg = Config.load(this);
         if (MainActivity.ACTION_LAUNCHER_SETTINGS.equals(getIntent().getAction())) page = SETTINGS;
@@ -126,7 +129,7 @@ public class AuraActivity extends Activity {
         super.onResume();
         if (!resumedOnce) {
             resumedOnce = true;
-            root.post(() -> sp.edit().putBoolean(AuraStyle.K_OK, true).apply());
+            root.post(() -> sp.edit().putBoolean(AuraStyle.K_OK, true).putInt(AuraStyle.K_FAILS, 0).apply());
         }
     }
 
