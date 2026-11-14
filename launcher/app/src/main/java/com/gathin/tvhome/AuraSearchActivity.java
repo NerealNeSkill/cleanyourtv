@@ -432,9 +432,32 @@ public class AuraSearchActivity extends Activity {
                 why = why + "/" + again.getClass().getSimpleName();
             }
         }
+        // Last resorts: the same address as a plain view, then at least the app itself.
+        if (i.getData() != null) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, i.getData()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (ActivityNotFoundException | SecurityException again) {
+                why = why + "/VIEW";
+            }
+        }
+        if (i.getPackage() != null) {
+            Intent launch = getPackageManager().getLeanbackLaunchIntentForPackage(i.getPackage());
+            if (launch == null) launch = getPackageManager().getLaunchIntentForPackage(i.getPackage());
+            if (launch != null) {
+                try {
+                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(launch);
+                    Toast.makeText(this, t("Открыл приложение: этот результат оно по ссылке не принимает", "Opened the app: it does not accept this result's link"), Toast.LENGTH_LONG).show();
+                    return;
+                } catch (ActivityNotFoundException | SecurityException again) {
+                    why = why + "/APP";
+                }
+            }
+        }
         String cols = colsSeen;
         Toast.makeText(this, t("Не удалось открыть: ", "Cannot open: ") + why + " " + i.getAction() + (cols == null ? "" : " [" + cols + "]")
-                + (i.getData() == null ? t(" (нет адреса)", " (no address)") : " " + i.getData().getScheme() + "://" + i.getData().getHost()), Toast.LENGTH_LONG).show();
+                + (i.getData() == null ? t(" (нет адреса)", " (no address)") : " " + i.getData()), Toast.LENGTH_LONG).show();
     }
 
     // ------------------------------------------------------------------ search
