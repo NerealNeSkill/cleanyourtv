@@ -7,6 +7,8 @@
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
+    <!-- AURA search: the voice input listens through the speech recogniser API, so no Google window opens over the screen. Asked once, only when the mic is pressed. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Needed since Android 10 to read the Wi-Fi network name for the network pill. Never requested at
@@ -18,6 +20,14 @@
          list (ServiceRepair). Granted with pm grant by build-and-install when a helper is enabled. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <!-- AURA search: covers named by https links in search suggestions are fetched for the results on screen
+         (AuraSearchActivity.loadCover). Nothing else uses the network: no analytics, no background requests. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- AURA search: lets the system hand this app the search-suggestion providers it keeps for global search. A
+         system-level permission: it is only given when the system allows it (for example `pm grant` over adb), and
+         the search screen works without it. -->
+    <uses-permission android:name="android.permission.GLOBAL_SEARCH"
+        tools:ignore="ProtectedPermissions" />
     <!-- YaOS (Yandex TV OS): HDMI, AV and the tuner all play in com.yandex.tv.live, whose activities require
          this permission (protection level normal, so it is granted at install). Ignored on other TVs. -->
     <uses-permission android:name="yandex.tv.permission.ACCESS_TV_SOURCE" />
@@ -25,6 +35,19 @@
     <!-- Android 11+ package visibility: lets the launcher list the TV apps it shows as tiles, and the
          apps that declare a module card (docs/specs/card.md). -->
     <queries>
+        <!-- AURA search: apps that play from a search, and YouTube's own links. -->
+        <intent>
+            <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+        </intent>
+        <!-- AURA voice: the speech recognisers installed on the TV (without this Android 11 hides them). -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <package android:name="com.google.android.youtube.tv" />
+        <package android:name="com.google.android.youtube" />
         <!-- The standard settings handlers, so package visibility doesn't hide them and send the pills to a vendor fallback by mistake. -->
         <intent>
             <action android:name="android.settings.SETTINGS" />
@@ -54,6 +77,10 @@
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
+        </intent>
+        <!-- AURA search: the apps that publish search suggestions. -->
+        <intent>
+            <action android:name="android.intent.action.SEARCH" />
         </intent>
         <!-- stock_home_redirect: HomeKeyService looks up the stock launcher's HOME activity. -->
         <intent>
@@ -103,6 +130,46 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- AURA home screen: MainActivity hands Home over to it while aura_ui is on. Same window rules as MainActivity. -->
+        <activity
+            android:name=".AuraActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
+            android:screenOrientation="landscape" />
+
+        <!-- AURA signal sources: HDMI, AV and tuner as cards, no classic home screen. -->
+        <activity
+            android:name=".AuraInputsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape" />
+
+        <!-- AURA search: asks the installed apps for suggestions and shows them under each app's name. -->
+        <activity
+            android:name=".AuraSearchActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:windowSoftInputMode="stateVisible|adjustResize"
+            android:screenOrientation="landscape">
+            <!-- The remote's microphone button: the system offers every app that declares the assist actions, and the
+                 person picks AURA with "Always". -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH_LONG_PRESS" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 

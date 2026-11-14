@@ -139,3 +139,5 @@ Up and Down move one row. The top buttons never fall through to tiles, and Down 
 dock tile you came from. The last focused app is remembered, and installing or removing an app refreshes
 the tiles while Home is open. App banners load at xhdpi or better, so low-density TV UIs do not downsample
 them before the focus zoom.
+
+An alternative dark home screen with a side rail and a Personalisation page is described in [`docs/aura.md`](aura.md).
