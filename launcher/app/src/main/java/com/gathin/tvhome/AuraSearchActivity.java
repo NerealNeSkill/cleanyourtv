@@ -105,6 +105,11 @@ public class AuraSearchActivity extends Activity {
         ImageView micGlyph = new ImageView(this);
         micGlyph.setImageDrawable(new AuraStyle.Glyph(AuraStyle.G_MIC, pal.onAccent));
         mic.addView(micGlyph, new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
+        // The mic is a button: press OK on it (Up from the search line) to speak without going back to the home screen.
+        mic.setFocusable(true);
+        mic.setClickable(true);
+        mic.setOnClickListener(v -> { setStatus(t("Слушаю…", "Listening…")); showMessage(t("Скажите название или команду", "Say a name or a command")); listen(); });
+        mic.setOnFocusChangeListener((v, focus) -> mic.setBackground(AuraStyle.shape(pal.accent, focus ? pal.text : 0, dp(32), focus ? 3 : 0)));
         panel.addView(mic, new LinearLayout.LayoutParams(dp(64), dp(64)));
         status = new TextView(this);
         status.setTextColor(pal.text);
