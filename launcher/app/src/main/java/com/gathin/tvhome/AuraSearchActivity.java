@@ -72,6 +72,7 @@ public class AuraSearchActivity extends Activity {
         final String title, sub;
         final Intent intent;
         Drawable poster;
+        String posterUrl;
         Hit(String title, String sub, Intent intent) { this.title = title; this.sub = sub; this.intent = intent; }
     }
 
@@ -326,9 +327,9 @@ public class AuraSearchActivity extends Activity {
 
     private void row(String title, String sub, final Intent intent) { row(title, sub, intent, null); }
 
-    private void row(String title, String sub, final Intent intent, Drawable icon) { row(title, sub, intent, icon, false); }
+    private void row(String title, String sub, final Intent intent, Drawable icon) { row(title, sub, intent, icon, false, null); }
 
-    private void row(String title, String sub, final Intent intent, Drawable icon, boolean tall) {
+    private void row(String title, String sub, final Intent intent, Drawable icon, boolean tall, String coverUrl) {
         LinearLayout r = new LinearLayout(this);
         r.setOrientation(LinearLayout.HORIZONTAL);
         r.setGravity(Gravity.CENTER_VERTICAL);
@@ -339,6 +340,7 @@ public class AuraSearchActivity extends Activity {
             if (tall) iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
             ip.rightMargin = dp(14);
             r.addView(iv, ip);
+            if (coverUrl != null) loadCover(coverUrl, iv);
         }
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
@@ -511,7 +513,7 @@ public class AuraSearchActivity extends Activity {
         if (hits != null && !hits.isEmpty()) {
             header(s.label);
             Drawable ic = icon(s.pkg);
-            for (Hit h : hits) row(h.title, h.sub, h.intent, h.poster != null ? h.poster : ic, h.poster != null);
+            for (Hit h : hits) row(h.title, h.sub, h.intent, h.poster != null ? h.poster : ic, h.poster != null || h.posterUrl != null, h.posterUrl);
         }
         Intent search = new Intent(Intent.ACTION_SEARCH).setPackage(s.pkg).putExtra(SearchManager.QUERY, q);
         if (hits == null || hits.isEmpty()) {
@@ -544,6 +546,50 @@ public class AuraSearchActivity extends Activity {
             }
         } catch (Exception | OutOfMemoryError e) {
             return null;
+        }
+    }
+
+    private static final android.util.LruCache<String, android.graphics.Bitmap> COVERS =
+            new android.util.LruCache<String, android.graphics.Bitmap>(6 * 1024 * 1024) {
+                @Override protected int sizeOf(String k, android.graphics.Bitmap b) { return b.getByteCount(); }
+            };
+
+    /**
+     * Fetches a cover named by an https link in a suggestion, for a result that is on screen: the only network use of
+     * the launcher. Short timeouts, a size cap, a small memory cache, no disk and no cookies.
+     */
+    private void loadCover(final String url, final ImageView into) {
+        android.graphics.Bitmap cached = COVERS.get(url);
+        if (cached != null) { into.setImageBitmap(cached); return; }
+        try {
+            pool.execute(() -> {
+                java.net.HttpURLConnection c = null;
+                try {
+                    c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    c.setConnectTimeout(4000);
+                    c.setReadTimeout(4000);
+                    c.setInstanceFollowRedirects(true);
+                    if (c.getResponseCode() != 200 || c.getContentLength() > 2 * 1024 * 1024) return;
+                    java.io.InputStream in = c.getInputStream();
+                    java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+                    byte[] chunk = new byte[8192];
+                    int n, total = 0;
+                    while ((n = in.read(chunk)) > 0) { total += n; if (total > 2 * 1024 * 1024) return; buf.write(chunk, 0, n); }
+                    android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
+                    o.inSampleSize = 2;
+                    byte[] data = buf.toByteArray();
+                    final android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length, o);
+                    if (bmp == null) return;
+                    COVERS.put(url, bmp);
+                    ui.post(() -> into.setImageBitmap(bmp));
+                } catch (Exception | OutOfMemoryError ignored) {
+                    // no cover: the app's icon stays
+                } finally {
+                    if (c != null) c.disconnect();
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+            // the screen is gone
         }
     }
 
@@ -605,7 +651,8 @@ public class AuraSearchActivity extends Activity {
                     if ((ref == null || ref.isEmpty()) && ic1 >= 0) ref = c.getString(ic1);
                     if ((ref == null || ref.isEmpty()) && ic2 >= 0) ref = c.getString(ic2);
                     hit.poster = poster(ref, s.pkg);
-                    if (hit.poster == null) {
+                    if (hit.poster == null && ref != null && ref.startsWith("https://")) hit.posterUrl = ref;
+                    if (hit.poster == null && hit.posterUrl == null) {
                         String kind = ref == null || ref.isEmpty() ? t("нет", "none") : ref.startsWith("http") ? t("ссылка", "web link") : t("не открылась", "could not open");
                         hit = new Hit(hit.title, (hit.sub == null ? "" : hit.sub + " · ") + t("обложка: ", "cover: ") + kind, hit.intent);
                     }

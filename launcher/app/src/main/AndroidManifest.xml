@@ -20,6 +20,9 @@
          list (ServiceRepair). Granted with pm grant by build-and-install when a helper is enabled. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <!-- AURA search: covers named by https links in search suggestions are fetched for the results on screen
+         (AuraSearchActivity.loadCover). Nothing else uses the network: no analytics, no background requests. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- AURA search: lets the system hand this app the search-suggestion providers it keeps for global search. A
          system-level permission: it is only given when the system allows it (for example `pm grant` over adb), and
          the search screen works without it. -->
