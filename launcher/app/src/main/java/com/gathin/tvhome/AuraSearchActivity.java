@@ -707,10 +707,11 @@ public class AuraSearchActivity extends Activity {
         final List<Source> sources = new ArrayList<>();
         final SearchManager sm = (SearchManager) getSystemService(SEARCH_SERVICE);
         List<String> done = new ArrayList<>();
+        final java.util.Set<String> off = AuraStyle.searchOff(AuraStyle.prefs(this));
         List<ResolveInfo> searchers = pm.queryIntentActivities(new Intent(Intent.ACTION_SEARCH), 0);
         for (ResolveInfo ri : searchers) {
             String pkg = ri.activityInfo.packageName;
-            if (pkg.equals(getPackageName()) || done.contains(pkg)) continue;
+            if (pkg.equals(getPackageName()) || done.contains(pkg) || off.contains(pkg)) continue;
             if (pm.getLeanbackLaunchIntentForPackage(pkg) == null && pm.getLaunchIntentForPackage(pkg) == null) continue; // system plumbing, not an app
             done.add(pkg);
             // Lampa's provider treats a few phrases as commands (one of them removes the app): such words are never handed to it.
@@ -724,7 +725,7 @@ public class AuraSearchActivity extends Activity {
         String[] youtube = {"com.google.android.youtube.tv", "com.google.android.youtube"};
         for (String yt : youtube) {
             Intent v = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + enc)).setPackage(yt);
-            if (done.contains(yt) || pm.resolveActivity(v, 0) == null) continue;
+            if (done.contains(yt) || off.contains(yt) || pm.resolveActivity(v, 0) == null) continue;
             done.add(yt);
             other = true;
             searchLine(yt, yt.endsWith(".tv") ? "YouTube" : "YouTube", v, q, "");
@@ -732,7 +733,7 @@ public class AuraSearchActivity extends Activity {
         Intent play = new Intent("android.media.action.MEDIA_PLAY_FROM_SEARCH").putExtra(SearchManager.QUERY, q);
         for (ResolveInfo ri : pm.queryIntentActivities(play, 0)) {
             String pkg = ri.activityInfo.packageName;
-            if (pkg.equals(getPackageName()) || done.contains(pkg)) continue;
+            if (pkg.equals(getPackageName()) || done.contains(pkg) || off.contains(pkg)) continue;
             done.add(pkg);
             other = true;
             searchLine(pkg, String.valueOf(ri.loadLabel(pm)), new Intent(play).setPackage(pkg), q, "");

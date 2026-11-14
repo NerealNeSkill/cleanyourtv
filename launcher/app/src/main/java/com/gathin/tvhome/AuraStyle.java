@@ -46,6 +46,10 @@ final class AuraStyle {
     static final String K_LONGOK = "aura_long_ok";
     static final String K_FAV = "aura_fav";
     static final String K_HIDDEN = "aura_hidden";
+    /** Packages the owner switched off as search sources (comma separated). */
+    /** Remote buttons the owner taught AURA as the microphone button: "keycode:scancode" pairs, comma separated. */
+    static final String K_MIC_KEYS = "aura_mic_keys";
+    static final String K_SEARCH_OFF = "aura_search_off";
     static final String K_STARTED = "aura_started";
     static final String K_OK = "aura_ok";
     static final String K_FAILS = "aura_fails";
@@ -281,5 +285,55 @@ final class AuraStyle {
         @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
         @Override public void setColorFilter(ColorFilter filter) { paint.setColorFilter(filter); }
         @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
+    }
+
+    /** Apps AURA's search can ask for results: those that publish suggestions, play from words, or YouTube. Package to label, by label. */
+    static java.util.Map<String, String> searchSources(android.content.Context c) {
+        android.content.pm.PackageManager pm = c.getPackageManager();
+        java.util.Map<String, String> out = new java.util.TreeMap<>();
+        java.util.List<android.content.Intent> asks = new java.util.ArrayList<>();
+        asks.add(new android.content.Intent(android.content.Intent.ACTION_SEARCH));
+        asks.add(new android.content.Intent("android.media.action.MEDIA_PLAY_FROM_SEARCH"));
+        for (android.content.Intent i : asks) {
+            for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(i, 0)) {
+                String pkg = ri.activityInfo.packageName;
+                if (pkg.equals(c.getPackageName())) continue;
+                if (pm.getLeanbackLaunchIntentForPackage(pkg) == null && pm.getLaunchIntentForPackage(pkg) == null) continue;
+                out.put(pkg, String.valueOf(ri.activityInfo.applicationInfo.loadLabel(pm)));
+            }
+        }
+        for (String yt : new String[]{"com.google.android.youtube.tv", "com.google.android.youtube"}) {
+            try { out.put(yt, String.valueOf(pm.getApplicationInfo(yt, 0).loadLabel(pm))); } catch (Exception ignored) { }
+        }
+        return out;
+    }
+
+    static java.util.Set<String> searchOff(android.content.SharedPreferences sp) {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        String raw = sp.getString(K_SEARCH_OFF, null);
+        if (raw != null) for (String p : raw.split(",")) if (!p.isEmpty()) out.add(p);
+        return out;
+    }
+
+    /** Set while the settings screen waits for the owner to press the remote's microphone button; the helper hands the press over. */
+    interface KeyLearner { void learned(int keyCode, int scanCode); }
+    static volatile KeyLearner learner;
+
+    /** The remote's microphone button: the standard assist and search keys, plus any button the owner taught. */
+    static boolean isMicKey(android.content.SharedPreferences sp, android.view.KeyEvent e) {
+        int c = e.getKeyCode();
+        if (c == android.view.KeyEvent.KEYCODE_ASSIST || c == android.view.KeyEvent.KEYCODE_VOICE_ASSIST || c == android.view.KeyEvent.KEYCODE_SEARCH) return true;
+        String raw = sp.getString(K_MIC_KEYS, null);
+        if (raw == null) return false;
+        for (String pair : raw.split(",")) {
+            String[] p = pair.split(":");
+            if (p.length != 2) continue;
+            try {
+                int code = Integer.parseInt(p[0]);
+                int scan = Integer.parseInt(p[1]);
+                if (scan != 0 ? e.getScanCode() == scan : c == code) return true;
+            } catch (NumberFormatException ignored) { }
+        }
+        return false;
     }
 }

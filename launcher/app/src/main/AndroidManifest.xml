@@ -26,6 +26,8 @@
     <!-- AURA search: lets the system hand this app the search-suggestion providers it keeps for global search. A
          system-level permission: it is only given when the system allows it (for example `pm grant` over adb), and
          the search screen works without it. -->
+    <!-- Not granted to apps: with `pm grant` from the phone app or adb, AURA can then set itself as the assistant. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.GLOBAL_SEARCH"
         tools:ignore="ProtectedPermissions" />
     <!-- YaOS (Yandex TV OS): HDMI, AV and the tuner all play in com.yandex.tv.live, whose activities require
@@ -159,19 +161,36 @@
             android:screenOrientation="landscape">
             <!-- The remote's microphone button: the system offers every app that declares the assist actions, and the
                  person picks AURA with "Always". -->
-            <intent-filter>
+            <intent-filter android:priority="100">
                 <action android:name="android.intent.action.ASSIST" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-            <intent-filter>
+            <intent-filter android:priority="100">
                 <action android:name="android.intent.action.VOICE_ASSIST" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-            <intent-filter>
+            <intent-filter android:priority="100">
                 <action android:name="android.intent.action.SEARCH_LONG_PRESS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Lets AURA be chosen as the assistant, so the remote's microphone button opens AURA's voice search. -->
+        <service
+            android:name=".AuraVoiceService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/aura_voice_interaction" />
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".AuraVoiceSessionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
 
         <activity
             android:name=".LauncherSettingsActivity"

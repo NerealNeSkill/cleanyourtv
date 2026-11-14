@@ -263,7 +263,14 @@ public class HomeKeyService extends AccessibilityService {
         }
         // AURA: the remote's microphone (assist) button opens AURA's own voice search instead of the stock one.
         int code = event.getKeyCode();
-        if ((code == KeyEvent.KEYCODE_ASSIST || code == KeyEvent.KEYCODE_VOICE_ASSIST) && AuraStyle.shouldRun(this)) {
+        AuraStyle.KeyLearner learn = AuraStyle.learner;
+        if (learn != null && code != KeyEvent.KEYCODE_BACK && code != KeyEvent.KEYCODE_DPAD_CENTER && code != KeyEvent.KEYCODE_ENTER
+                && code != KeyEvent.KEYCODE_HOME && code != KeyEvent.KEYCODE_DPAD_UP && code != KeyEvent.KEYCODE_DPAD_DOWN
+                && code != KeyEvent.KEYCODE_DPAD_LEFT && code != KeyEvent.KEYCODE_DPAD_RIGHT) {
+            if (event.getAction() == KeyEvent.ACTION_UP) { AuraStyle.learner = null; learn.learned(code, event.getScanCode()); }
+            return true;
+        }
+        if (AuraStyle.prefs(this).getBoolean(AuraStyle.K_VOICE, true) && AuraStyle.isMicKey(AuraStyle.prefs(this), event)) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
                 try {
                     startActivity(new Intent(this, AuraSearchActivity.class)

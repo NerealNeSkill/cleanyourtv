@@ -1003,6 +1003,15 @@ public class AuraActivity extends Activity {
 
     private void voicePanel(LinearLayout p) {
         toggle(p, AuraStyle.K_VOICE, true, t("Голосовой поиск", "Voice search"), t("Системный распознаватель речи; AURA ничего не записывает", "The system speech recogniser; AURA records nothing"), true);
+        action(p, "searchsrc", t("Где искать", "Search sources"),
+                t("Приложения, которые показывают результаты в поиске", "Apps that show results in search"),
+                (AuraStyle.searchSources(this).size() - AuraStyle.searchOff(sp).size()) + t(" включено", " on"), this::pickSearchSources);
+        action(p, "assistbtn", t("Кнопка микрофона на пульте", "Remote microphone button"),
+                t("Выбрать AURA ассистентом: кнопка откроет голосовой поиск AURA", "Make AURA the assistant: the button opens AURA's voice search"),
+                isAssistant() ? t("включено", "on") : t("не выбрано", "not set"), this::becomeAssistant);
+        action(p, "micbtn", t("Назначить кнопку микрофона", "Teach the microphone button"),
+                t("Нажмите нужную кнопку на пульте: она откроет голосовой поиск", "Press a button on the remote: it will open voice search"),
+                AuraStyle.prefs(this).getString(AuraStyle.K_MIC_KEYS, "").isEmpty() ? "" : t("назначена", "taught"), this::learnMicButton);
         action(p, "voicenow", t("Попробовать", "Try it"), t("Скажите название приложения: «Открой YouTube»", "Say an app name: \"Open YouTube\""), "", this::voice);
     }
 
@@ -1114,6 +1123,89 @@ public class AuraActivity extends Activity {
                     for (String pkg : selected) { App a = find(pkg); if (a != null && on[all.indexOf(a)]) out.add(pkg); }
                     for (int i = 0; i < all.size(); i++) if (on[i] && !out.contains(all.get(i).pkg)) out.add(all.get(i).pkg);
                     result.done(out);
+                })
+                .setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    /** Waits for one press of the remote's microphone (or any other) button and keeps it as the voice-search button. */
+    private void learnMicButton() {
+        final AlertDialog[] dlg = new AlertDialog[1];
+        final AuraStyle.KeyLearner done = (code, scan) -> runOnUiThread(() -> {
+            Set<String> keys = new java.util.LinkedHashSet<>();
+            String raw = sp.getString(AuraStyle.K_MIC_KEYS, "");
+            for (String k : raw.split(",")) if (!k.isEmpty()) keys.add(k);
+            keys.add(code + ":" + scan);
+            sp.edit().putString(AuraStyle.K_MIC_KEYS, String.join(",", keys)).apply();
+            if (dlg[0] != null) dlg[0].dismiss();
+            Toast.makeText(this, t("Кнопка назначена (код ", "Button taught (code ") + code + ")", Toast.LENGTH_LONG).show();
+            build("row:micbtn");
+        });
+        AuraStyle.learner = done;
+        dlg[0] = new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle(t("Нажмите кнопку микрофона на пульте", "Press the remote's microphone button"))
+                .setMessage(t("Если ничего не происходит, включите помощника кнопки «Домой» в телефонном приложении.", "If nothing happens, switch on the Home button helper in the phone app."))
+                .setNeutralButton(t("Сбросить назначенные", "Clear taught buttons"), (d, w) -> { sp.edit().remove(AuraStyle.K_MIC_KEYS).apply(); build("row:micbtn"); })
+                .setNegativeButton(android.R.string.cancel, null)
+                .setOnKeyListener((d, keyCode, ev) -> {
+                    if (ev.getAction() == KeyEvent.ACTION_UP && keyCode != KeyEvent.KEYCODE_BACK && keyCode != KeyEvent.KEYCODE_DPAD_CENTER
+                            && keyCode != KeyEvent.KEYCODE_DPAD_UP && keyCode != KeyEvent.KEYCODE_DPAD_DOWN && keyCode != KeyEvent.KEYCODE_DPAD_LEFT
+                            && keyCode != KeyEvent.KEYCODE_DPAD_RIGHT && keyCode != KeyEvent.KEYCODE_ENTER && AuraStyle.learner == done) {
+                        AuraStyle.learner = null; done.learned(keyCode, ev.getScanCode()); return true;
+                    }
+                    return false;
+                })
+                .setOnDismissListener(d -> { if (AuraStyle.learner == done) AuraStyle.learner = null; })
+                .show();
+    }
+
+    private ComponentName assistService() { return new ComponentName(getPackageName(), getPackageName() + ".AuraVoiceService"); }
+
+    private boolean isAssistant() {
+        try {
+            String v = android.provider.Settings.Secure.getString(getContentResolver(), "assistant");
+            return v != null && v.equals(assistService().flattenToString());
+        } catch (RuntimeException e) { return false; }
+    }
+
+    /** Sets AURA as the assistant when the app may write secure settings; otherwise opens the TV's own page for it. */
+    private void becomeAssistant() {
+        String flat = assistService().flattenToString();
+        try {
+            android.provider.Settings.Secure.putString(getContentResolver(), "assistant", flat);
+            android.provider.Settings.Secure.putString(getContentResolver(), "voice_interaction_service", flat);
+            Toast.makeText(this, t("Готово: кнопка микрофона откроет поиск AURA", "Done: the microphone button opens AURA search"), Toast.LENGTH_LONG).show();
+            build("row:assistbtn");
+            return;
+        } catch (SecurityException ignored) {
+        }
+        String[] pages = {"android.settings.VOICE_INPUT_SETTINGS", "android.settings.MANAGE_DEFAULT_APPS_SETTINGS", android.provider.Settings.ACTION_SETTINGS};
+        for (String page : pages) {
+            try {
+                startActivity(new Intent(page).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                Toast.makeText(this, t("Выберите AURA в пункте «Ассистент»", "Pick AURA under \"Assistant\""), Toast.LENGTH_LONG).show();
+                return;
+            } catch (ActivityNotFoundException | SecurityException ignored) {
+            }
+        }
+    }
+
+    /** Which apps AURA's search asks for results; ticked ones are asked, the rest are left out. */
+    private void pickSearchSources() {
+        final java.util.Map<String, String> all = AuraStyle.searchSources(this);
+        final java.util.Set<String> off = AuraStyle.searchOff(sp);
+        final List<String> pkgs = new ArrayList<>(all.keySet());
+        Collections.sort(pkgs, (x, y) -> all.get(x).compareToIgnoreCase(all.get(y)));
+        if (pkgs.isEmpty()) { Toast.makeText(this, t("Нет приложений с поиском", "No apps with search"), Toast.LENGTH_LONG).show(); return; }
+        final String[] labels = new String[pkgs.size()];
+        final boolean[] on = new boolean[pkgs.size()];
+        for (int i = 0; i < pkgs.size(); i++) { labels[i] = all.get(pkgs.get(i)); on[i] = !off.contains(pkgs.get(i)); }
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert).setTitle(t("Где искать", "Search sources"))
+                .setMultiChoiceItems(labels, on, (d, which, checked) -> on[which] = checked)
+                .setPositiveButton(android.R.string.ok, (d, w) -> {
+                    Set<String> next = new HashSet<>(off);
+                    for (int i = 0; i < pkgs.size(); i++) { if (on[i]) next.remove(pkgs.get(i)); else next.add(pkgs.get(i)); }
+                    saveList(AuraStyle.K_SEARCH_OFF, new ArrayList<>(next));
+                    build("row:searchsrc");
                 })
                 .setNegativeButton(android.R.string.cancel, null).show();
     }
