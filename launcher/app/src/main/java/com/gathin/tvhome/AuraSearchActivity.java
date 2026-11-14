@@ -146,6 +146,25 @@ public class AuraSearchActivity extends Activity {
             cp.leftMargin = cp.rightMargin = dp(5);
             chips.addView(chip, cp);
         }
+        TextView home = new TextView(this);
+        home.setText(t("⌂ На главный", "⌂ Home"));
+        home.setTextColor(pal.onAccent);
+        home.setTextSize(13);
+        home.setFocusable(true);
+        home.setClickable(true);
+        home.setPadding(dp(16), dp(7), dp(16), dp(7));
+        home.setBackground(AuraStyle.shape(pal.accent, 0, dp(10), 0));
+        home.setOnFocusChangeListener((v, f) -> v.setBackground(AuraStyle.shape(pal.accent, f ? pal.text : 0, dp(10), f ? 3 : 0)));
+        home.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(getPackageName())
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+            } catch (RuntimeException ignored) { }
+            finish();
+        });
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hp.leftMargin = hp.rightMargin = dp(5);
+        chips.addView(home, 0, hp);
         panel.addView(chips, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(panel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         setStatus(t("Что найти?", "What to find?"));
