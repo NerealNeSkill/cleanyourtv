@@ -410,7 +410,7 @@ public class AuraSearchActivity extends Activity {
     }
 
     private LinearLayout.LayoutParams cardParams() {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(132), ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(132), ViewGroup.LayoutParams.MATCH_PARENT);
         p.rightMargin = dp(10);
         return p;
     }
@@ -444,6 +444,14 @@ public class AuraSearchActivity extends Activity {
         return c;
     }
 
+    /** Scroll the page so the whole line of the focused card (cover, title, details) is on screen. */
+    private void showWholeLine(View card) {
+        View line = card;
+        for (int i = 0; i < 3 && line.getParent() instanceof View; i++) line = (View) line.getParent();
+        final View l = line;
+        l.post(() -> l.requestRectangleOnScreen(new android.graphics.Rect(0, -dp(8), l.getWidth(), l.getHeight() + dp(16)), false));
+    }
+
     /** One result: the cover on top (the app's icon when it names none), then the title and the details. */
     private View resultCard(Source s, Hit h) {
         LinearLayout c = new LinearLayout(this);
@@ -452,7 +460,10 @@ public class AuraSearchActivity extends Activity {
         c.setFocusable(true);
         c.setClickable(true);
         c.setBackground(AuraStyle.card(pal, dp(12), false));
-        c.setOnFocusChangeListener((v, f) -> v.setBackground(AuraStyle.card(pal, dp(12), f)));
+        c.setOnFocusChangeListener((v, f) -> {
+            v.setBackground(AuraStyle.card(pal, dp(12), f));
+            if (f) showWholeLine(v);
+        });
         ImageView iv = new ImageView(this);
         boolean cover = h.poster != null || h.posterUrl != null;
         iv.setImageDrawable(h.poster != null ? h.poster : icon(s.pkg));
@@ -478,7 +489,7 @@ public class AuraSearchActivity extends Activity {
             b.setText(sub);
             b.setTextColor(pal.sub);
             b.setTextSize(11);
-            b.setMaxLines(1);
+            b.setMaxLines(2);
             b.setEllipsize(android.text.TextUtils.TruncateAt.END);
             b.setPadding(dp(2), dp(2), dp(2), 0);
             c.addView(b);
