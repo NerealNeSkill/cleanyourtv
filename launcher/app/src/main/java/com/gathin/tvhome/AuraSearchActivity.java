@@ -866,6 +866,14 @@ public class AuraSearchActivity extends Activity {
             if (selection != null) args = new String[]{q};
             else ub.appendPath(q);
             Cursor c = getContentResolver().query(ub.build(), null, selection, args, null);
+            if (selection == null && (c == null || c.getCount() == 0)) {
+                // Some providers (Lampa) take the words as the selection argument although their config names none.
+                if (c != null) c.close();
+                Uri.Builder plain = new Uri.Builder().scheme("content").authority(providerAuthority(s.pkg, info.getSuggestAuthority()));
+                if (info.getSuggestPath() != null) plain.appendEncodedPath(info.getSuggestPath());
+                plain.appendPath(SearchManager.SUGGEST_URI_PATH_QUERY);
+                try { c = getContentResolver().query(plain.build(), null, " ?", new String[]{q}, null); } catch (RuntimeException e) { c = null; }
+            }
             if (c == null) { s.why = t("подсказок нет", "no suggestions"); return null; }
             if (c.getCount() == 0) s.why = t("ничего не нашлось", "nothing found");
             List<Hit> out = new ArrayList<>();
