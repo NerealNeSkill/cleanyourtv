@@ -28,8 +28,37 @@ final class AuraWallpapers {
         }
     }
 
+    private static final String K_SEEDED = "aura_walls_seeded";
+
+    /**
+     * The first time, puts the launcher's own pictures (made for it, no one else's work) into the folder, so the folder
+     * exists and "Your wallpapers" works at once. Pictures a person deletes are not brought back.
+     */
+    static void seed(Context c) {
+        android.content.SharedPreferences sp = AuraStyle.prefs(c);
+        if (sp.getBoolean(K_SEEDED, false)) return;
+        File dir = appFolder(c);
+        if (dir == null) return;
+        try {
+            if (!dir.isDirectory() && !dir.mkdirs()) return;
+            String[] names = c.getAssets().list("aura_wallpapers");
+            if (names != null) for (String n : names) {
+                File out = new File(dir, n);
+                if (out.exists()) continue;
+                try (java.io.InputStream in = c.getAssets().open("aura_wallpapers/" + n);
+                     java.io.FileOutputStream os = new java.io.FileOutputStream(out)) {
+                    byte[] buf = new byte[16384];
+                    int r;
+                    while ((r = in.read(buf)) > 0) os.write(buf, 0, r);
+                }
+            }
+            sp.edit().putBoolean(K_SEEDED, true).apply();
+        } catch (java.io.IOException | RuntimeException ignored) { }
+    }
+
     /** Every picture found, the app folder first; at most 40, none over 10 MB. */
     static List<File> list(Context c) {
+        seed(c);
         List<File> all = new ArrayList<>();
         for (File dir : new File[]{appFolder(c), picturesFolder()}) {
             for (File f : WallpaperRotation.images(dir)) {
