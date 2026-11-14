@@ -261,6 +261,18 @@ public class HomeKeyService extends AccessibilityService {
                 && event.getKeyCode() != KeyEvent.KEYCODE_POWER && event.getKeyCode() != KeyEvent.KEYCODE_WAKEUP) {
             powerOnUntil = 0;
         }
+        // AURA: the remote's microphone (assist) button opens AURA's own voice search instead of the stock one.
+        int code = event.getKeyCode();
+        if ((code == KeyEvent.KEYCODE_ASSIST || code == KeyEvent.KEYCODE_VOICE_ASSIST) && AuraStyle.shouldRun(this)) {
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                try {
+                    startActivity(new Intent(this, AuraSearchActivity.class)
+                            .putExtra(AuraSearchActivity.EXTRA_VOICE, true)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+                } catch (RuntimeException ignored) { }
+            }
+            return true;
+        }
         if (consumeVolumeKeys && VolumeKeys.handle(this, event)) return true;
         // A scancode entry is more specific than any keycode, so it goes first.
         if (RemoteKeys.handle(this, event, inFront(appScancodes, frontAppScancodes, event.getScanCode()),
