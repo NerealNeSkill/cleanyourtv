@@ -648,6 +648,8 @@ public class AuraSearchActivity extends Activity {
             if (pkg.equals(getPackageName()) || done.contains(pkg)) continue;
             if (pm.getLeanbackLaunchIntentForPackage(pkg) == null && pm.getLaunchIntentForPackage(pkg) == null) continue; // system plumbing, not an app
             done.add(pkg);
+            // Lampa's provider treats a few phrases as commands (one of them removes the app): such words are never handed to it.
+            if (pkg.startsWith("top.rootu.lampa") && q.toLowerCase(Locale.ROOT).contains("lampa_")) continue;
             sources.add(new Source(String.valueOf(ri.activityInfo.applicationInfo.loadLabel(pm)), pkg, new ComponentName(pkg, ri.activityInfo.name)));
         }
         // 3. Apps that don't publish suggestions but play or search from words: the documented media-search
