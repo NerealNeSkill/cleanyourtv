@@ -62,8 +62,6 @@ public class AuraSearchActivity extends Activity {
     // Unbounded on purpose: a provider that never answers keeps its thread blocked in a binder call that cannot be
     // interrupted, and a fixed pool filled up with those, so later searches never reached NUM or the others.
     private final ExecutorService pool = Executors.newCachedThreadPool();
-    /** Apps whose provider is still busy with an earlier question: not asked again until it answers (Lampa hangs for minutes). */
-    private static final java.util.Set<String> BUSY = java.util.Collections.synchronizedSet(new java.util.HashSet<String>());
     private AuraStyle.Palette pal;
     private EditText input;
     private LinearLayout results;
@@ -682,21 +680,42 @@ public class AuraSearchActivity extends Activity {
         for (Source s : sources) waiting.add(s.label);
         showWaiting(q);
         for (final Source s : sources) {
-            Future<List<Hit>> f = pool.submit(() -> {
-                if (!BUSY.add(s.pkg)) { s.why = t("ещё отвечает на прошлый запрос", "still busy with the last question"); return null; }
-                try {
-                    return askBoth(sm, s, query);
-                } finally {
-                    BUSY.remove(s.pkg);
-                }
-            });
+            final Future<List<Hit>> f = startAsk(sm, s, query);
             pool.execute(() -> {
                 List<Hit> hits;
-                try { hits = f.get(WAIT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { f.cancel(true); hits = null; if (s.why.isEmpty()) s.why = t("не успело ответить", "did not answer in time"); }
+                try { hits = f.get(WAIT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { hits = null; if (s.why.isEmpty()) s.why = t("не успело ответить", "did not answer in time"); }
                 final List<Hit> out = hits;
                 ui.post(() -> { if (mine == generation) { waiting.remove(s.label); showWaiting(query); addSource(s, out, query); } });
             });
         }
+    }
+
+    private static final class Inflight {
+        final String query;
+        final java.util.concurrent.FutureTask<List<Hit>> task;
+        Inflight(String query, java.util.concurrent.FutureTask<List<Hit>> task) { this.query = query; this.task = task; }
+    }
+    /** The question each app's provider is still working on, shared by searches that repeat it. */
+    private static final java.util.concurrent.ConcurrentHashMap<String, Inflight> INFLIGHT = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Asks one app. If its provider is still working on the same words (a repeated search), the answer of that one is
+     * awaited instead of asking again; on other words it is left alone until it answers (a hung provider keeps its thread).
+     */
+    private Future<List<Hit>> startAsk(final SearchManager sm, final Source s, final String query) {
+        final java.util.concurrent.FutureTask<List<Hit>> task = new java.util.concurrent.FutureTask<>(() -> askBoth(sm, s, query));
+        Inflight prev = INFLIGHT.putIfAbsent(s.pkg, new Inflight(query, task));
+        if (prev == null) {
+            pool.execute(() -> {
+                try { task.run(); } finally { INFLIGHT.remove(s.pkg); }
+            });
+            return task;
+        }
+        if (prev.query.equals(query)) return prev.task;
+        s.why = t("ещё отвечает на прошлый запрос", "still busy with the last question");
+        java.util.concurrent.FutureTask<List<Hit>> none = new java.util.concurrent.FutureTask<>(() -> null);
+        none.run();
+        return none;
     }
 
     private List<Hit> askBoth(SearchManager sm, Source s, String query) {
