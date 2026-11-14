@@ -457,7 +457,7 @@ public class AuraSearchActivity extends Activity {
         boolean cover = h.poster != null || h.posterUrl != null;
         iv.setImageDrawable(h.poster != null ? h.poster : icon(s.pkg));
         iv.setScaleType(cover ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.CENTER_INSIDE);
-        c.addView(iv, new LinearLayout.LayoutParams(dp(120), dp(cover ? 140 : 90)));
+        c.addView(iv, new LinearLayout.LayoutParams(dp(120), dp(140)));
         if (h.posterUrl != null) loadCover(h.posterUrl, iv);
         TextView a = new TextView(this);
         a.setText(h.title);
