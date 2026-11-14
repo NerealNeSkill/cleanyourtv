@@ -239,9 +239,9 @@ public class AuraSearchActivity extends Activity {
             ComponentName pick = serviceIndex < services.size() ? services.get(serviceIndex) : null;
             recognizer = pick != null ? SpeechRecognizer.createSpeechRecognizer(this, pick) : SpeechRecognizer.createSpeechRecognizer(this);
             recognizer.setRecognitionListener(new RecognitionListener() {
-                @Override public void onReadyForSpeech(Bundle p) { setStatus(t("Слушаю…", "Listening…")); armTimeout(8000); }
+                @Override public void onReadyForSpeech(Bundle p) { setStatus(t("Слушаю…", "Listening…")); armTimeout(7000); }
                 @Override public void onBeginningOfSpeech() { armTimeout(15000); }
-                @Override public void onRmsChanged(float r) { wave(r); }
+                @Override public void onRmsChanged(float r) { if (recognizer != null) wave(r); }
                 @Override public void onBufferReceived(byte[] b) { }
                 @Override public void onEndOfSpeech() { }
                 @Override public void onEvent(int t, Bundle p) { }
@@ -276,6 +276,8 @@ public class AuraSearchActivity extends Activity {
     /** Stops listening when nothing is heard for a while, so the microphone does not stay on for ever. */
     private final Runnable giveUp = () -> {
         if (recognizer != null) { recognizer.destroy(); recognizer = null; }
+        java.util.Arrays.fill(level, 0f);
+        wave(-2f);
         setStatus(t("Не расслышал", "Didn't hear anything"));
         showMessage(t("Ничего не слышно. Нажмите на микрофон и скажите ещё раз или введите слова", "Nothing heard. Press the microphone to try again or type the words"));
     };
@@ -441,7 +443,7 @@ public class AuraSearchActivity extends Activity {
     }
 
     private LinearLayout.LayoutParams cardParams() {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(132), ViewGroup.LayoutParams.MATCH_PARENT);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(132), dp(212));
         p.rightMargin = dp(10);
         return p;
     }
