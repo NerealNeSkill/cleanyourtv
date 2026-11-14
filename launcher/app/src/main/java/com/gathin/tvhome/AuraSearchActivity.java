@@ -197,39 +197,55 @@ public class AuraSearchActivity extends Activity {
      * fallback (the permission is asked once; on a TV it can also be given with `pm grant`).
      */
     private void listen() {
-        if (SpeechRecognizer.isRecognitionAvailable(this) && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            try {
-                if (recognizer == null) {
-                    recognizer = SpeechRecognizer.createSpeechRecognizer(this);
-                    recognizer.setRecognitionListener(new RecognitionListener() {
-                        @Override public void onReadyForSpeech(Bundle p) { }
-                        @Override public void onBeginningOfSpeech() { }
-                        @Override public void onRmsChanged(float r) { wave(r); }
-                        @Override public void onBufferReceived(byte[] b) { }
-                        @Override public void onEndOfSpeech() { }
-                        @Override public void onEvent(int t, Bundle p) { }
-                        @Override public void onError(int error) {
-                            showMessage(t("Не расслышал. Введите слова или попробуйте ещё раз", "Didn't catch that. Type the words or try again"));
-                        }
-                        @Override public void onPartialResults(Bundle p) { heard(p, false); }
-                        @Override public void onResults(Bundle p) { heard(p, true); }
-                    });
-                }
-                recognizer.startListening(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                        .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true));
-                return;
-            } catch (RuntimeException ignored) {
-                // fall through to the system dialog
-            }
-        }
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED && !askedMic) {
-            askedMic = true;
-            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 53);
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            if (!askedMic) { askedMic = true; requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 53); return; }
+            systemDialog();
             return;
         }
-        systemDialog();
+        // Recognition services installed on the TV (declared in <queries>); the default one goes first.
+        List<ComponentName> services = new ArrayList<>();
+        try {
+            for (ResolveInfo ri : getPackageManager().queryIntentServices(new Intent("android.speech.RecognitionService"), 0)) {
+                if (ri.serviceInfo != null) services.add(new ComponentName(ri.serviceInfo.packageName, ri.serviceInfo.name));
+            }
+        } catch (RuntimeException ignored) { }
+        if (services.isEmpty() && !SpeechRecognizer.isRecognitionAvailable(this)) { systemDialog(); return; }
+        try {
+            if (recognizer != null) { recognizer.destroy(); recognizer = null; }
+            ComponentName pick = serviceIndex < services.size() ? services.get(serviceIndex) : null;
+            recognizer = pick != null ? SpeechRecognizer.createSpeechRecognizer(this, pick) : SpeechRecognizer.createSpeechRecognizer(this);
+            recognizer.setRecognitionListener(new RecognitionListener() {
+                @Override public void onReadyForSpeech(Bundle p) { setStatus(t("Слушаю…", "Listening…")); }
+                @Override public void onBeginningOfSpeech() { }
+                @Override public void onRmsChanged(float r) { wave(r); }
+                @Override public void onBufferReceived(byte[] b) { }
+                @Override public void onEndOfSpeech() { }
+                @Override public void onEvent(int t, Bundle p) { }
+                @Override public void onError(int error) {
+                    // Another installed recogniser may work where this one does not (no network, no language).
+                    if ((error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT || error == SpeechRecognizer.ERROR_SERVER
+                            || error == SpeechRecognizer.ERROR_CLIENT) && serviceIndex + 1 < services.size()) {
+                        serviceIndex++;
+                        listen();
+                        return;
+                    }
+                    String name = pick == null ? "?" : pick.getPackageName();
+                    showMessage(t("Не расслышал (код " + error + ", " + name + "). Введите слова или попробуйте ещё раз",
+                            "Didn't catch that (code " + error + ", " + name + "). Type the words or try again"));
+                }
+                @Override public void onPartialResults(Bundle p) { heard(p, false); }
+                @Override public void onResults(Bundle p) { heard(p, true); }
+            });
+            recognizer.startListening(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                    .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
+                    .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true));
+        } catch (RuntimeException e) {
+            systemDialog();
+        }
     }
+
+    private int serviceIndex;
 
     private boolean askedMic;
 
