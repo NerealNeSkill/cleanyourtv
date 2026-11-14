@@ -473,6 +473,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 // Fall through to the classic Home.
             }
         }
+        // AURA is the only look of this build: when it was switched off after repeated crashes, Home goes to the TV's own
+        // home screen. Only a TV with no other home screen left falls through to this one, so it is never without Home.
+        if (!ACTION_VIEW_INPUTS.equals(getIntent().getAction()) && !handedOver && AuraStyle.enabled(this) && !AuraStyle.shouldRun(this)
+                && AuraStyle.openStockHome(this)) {
+            handedOver = true;
+            finish();
+            return;
+        }
         setContentView(R.layout.activity_main);
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).

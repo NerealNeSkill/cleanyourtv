@@ -1,6 +1,8 @@
 package com.gathin.tvhome;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
@@ -333,6 +335,23 @@ final class AuraStyle {
                 int scan = Integer.parseInt(p[1]);
                 if (scan != 0 ? e.getScanCode() == scan : c == code) return true;
             } catch (NumberFormatException ignored) { }
+        }
+        return false;
+    }
+
+    /** Opens the TV's own home screen (Google TV Home and the like); false when the TV has none left switched on. */
+    static boolean openStockHome(Context c) {
+        PackageManager pm = c.getPackageManager();
+        for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)) {
+            String pkg = ri.activityInfo.packageName;
+            if (pkg.equals(c.getPackageName()) || pkg.equals("android") || pkg.contains("fallbackhome") || ri.activityInfo.name.contains("FallbackHome")
+                    || pkg.contains("setupwraith") || pkg.contains("provision")) continue;
+            try {
+                c.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                        .setComponent(new android.content.ComponentName(pkg, ri.activityInfo.name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return true;
+            } catch (android.content.ActivityNotFoundException | SecurityException ignored) {
+            }
         }
         return false;
     }

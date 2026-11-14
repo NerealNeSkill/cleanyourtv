@@ -1017,9 +1017,38 @@ public class AuraActivity extends Activity {
 
     private void remotePanel(LinearLayout p) {
         action(p, "inputs", t("Источники сигнала", "Inputs"), t("HDMI, AV и антенна", "HDMI, AV and tuner"), "", this::openInputs);
-        action(p, "classicset", t("Кнопки пульта и расширенные настройки", "Remote buttons and advanced settings"),
-                t("Классические настройки лаунчера", "The classic launcher settings"), "",
-                () -> open(new Intent(this, LauncherSettingsActivity.class)));
+        action(p, "onstart", t("Открывать при включении ТВ", "Open at power-on"),
+                t("Приложение, которое запустится после включения", "The app that starts after the TV is switched on"),
+                openOnStartLabel(), this::pickOpenOnStart);
+        action(p, "tvsettings", t("Настройки ТВ", "TV settings"), t("Сеть, экран, звук, учётные записи", "Network, display, sound, accounts"), "",
+                () -> open(SystemSettings.intent(this, android.provider.Settings.ACTION_SETTINGS)));
+    }
+
+    private String openOnStartLabel() {
+        String pkg = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getString(OpenOnStart.KEY, "");
+        if (pkg.isEmpty()) return t("выключено", "off");
+        App a = find(pkg);
+        return a != null ? a.label : pkg;
+    }
+
+    /** Off, then one app from the grid; it is opened once after each boot (MainActivity reads the choice). */
+    private void pickOpenOnStart() {
+        final List<App> all = new ArrayList<>(apps);
+        Collections.sort(all, (x, y) -> x.label.compareToIgnoreCase(y.label));
+        final String[] labels = new String[all.size() + 1];
+        labels[0] = t("Выключено", "Off");
+        final SharedPreferences settings = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        String current = settings.getString(OpenOnStart.KEY, "");
+        int checked = 0;
+        for (int i = 0; i < all.size(); i++) { labels[i + 1] = all.get(i).label; if (all.get(i).pkg.equals(current)) checked = i + 1; }
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert).setTitle(t("Открывать при включении ТВ", "Open at power-on"))
+                .setSingleChoiceItems(labels, checked, (d, which) -> {
+                    d.dismiss();
+                    if (which == 0) settings.edit().remove(OpenOnStart.KEY).apply();
+                    else { OpenOnStart.skipThisBoot(this); settings.edit().putString(OpenOnStart.KEY, all.get(which - 1).pkg).apply(); }
+                    build("row:onstart");
+                })
+                .setNegativeButton(android.R.string.cancel, null).show();
     }
 
     private void aboutPanel(LinearLayout p) {
@@ -1212,19 +1241,9 @@ public class AuraActivity extends Activity {
 
     /** Opens the TV's own home screen once (Google TV Home and the like); AURA stays the default and nothing is changed. */
     private void openStockHome() {
-        PackageManager pm = getPackageManager();
-        for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)) {
-            String pkg = ri.activityInfo.packageName;
-            if (pkg.equals(getPackageName()) || pkg.equals("android") || pkg.contains("fallbackhome") || ri.activityInfo.name.contains("FallbackHome")
-                    || pkg.contains("setupwraith") || pkg.contains("provision")) continue;
-            try {
-                startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-                        .setComponent(new ComponentName(pkg, ri.activityInfo.name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
-            } catch (ActivityNotFoundException | SecurityException ignored) {
-            }
+        if (!AuraStyle.openStockHome(this)) {
+            Toast.makeText(this, t("Родной экран на этом ТВ отключён", "The TV's own home screen is switched off on this TV"), Toast.LENGTH_LONG).show();
         }
-        Toast.makeText(this, t("Родной экран на этом ТВ отключён", "The TV's own home screen is switched off on this TV"), Toast.LENGTH_LONG).show();
     }
 
     // ---------------------------------------------------------------- voice
