@@ -55,10 +55,11 @@ public class AuraSearchActivity extends Activity {
     static final String EXTRA_VOICE = "voice";
     private static final int VOICE_REQUEST = 52;
     private static final int PER_APP = 8;
-    private static final long WAIT_MS = 1800;
+    // Apps with online sources (Lazy, Lampa, KinoTrend) can need several seconds; their rows appear as they answer.
+    private static final long WAIT_MS = 9000;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    private final ExecutorService pool = Executors.newFixedThreadPool(16);
     private AuraStyle.Palette pal;
     private EditText input;
     private LinearLayout results;

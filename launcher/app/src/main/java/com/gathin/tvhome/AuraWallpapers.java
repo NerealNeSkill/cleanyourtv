@@ -33,6 +33,11 @@ final class AuraWallpapers {
         List<File> all = new ArrayList<>();
         for (File dir : new File[]{appFolder(c), picturesFolder()}) {
             for (File f : WallpaperRotation.images(dir)) {
+                // A file that is not a picture (broken, half copied) is left out rather than shown as an empty wallpaper.
+                android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
+                o.inJustDecodeBounds = true;
+                android.graphics.BitmapFactory.decodeFile(f.getPath(), o);
+                if (o.outWidth <= 0 || o.outHeight <= 0) continue;
                 all.add(f);
                 if (all.size() >= 40) return all;
             }
