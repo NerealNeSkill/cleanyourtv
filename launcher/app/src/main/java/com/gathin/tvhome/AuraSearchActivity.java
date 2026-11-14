@@ -379,6 +379,22 @@ public class AuraSearchActivity extends Activity {
         } catch (ActivityNotFoundException | SecurityException e) {
             why = e.getClass().getSimpleName();
         }
+        // The address may not match the app's own filter (host, path, type): ask which of its screens takes this action
+        // and open that one by name, which skips the filter.
+        if (i.getPackage() != null && i.getAction() != null) {
+            try {
+                Intent probe = new Intent(i.getAction()).setPackage(i.getPackage());
+                java.util.List<ResolveInfo> named = getPackageManager().queryIntentActivities(probe, 0);
+                if (!named.isEmpty()) {
+                    Intent direct = new Intent(i).setPackage(null);
+                    direct.setComponent(new ComponentName(i.getPackage(), named.get(0).activityInfo.name));
+                    startActivity(direct);
+                    return;
+                }
+            } catch (ActivityNotFoundException | SecurityException again) {
+                why = why + "/" + again.getClass().getSimpleName();
+            }
+        }
         // The app may not take it with its own name pinned: let the system choose who opens the address.
         if (i.getPackage() != null && i.getData() != null) {
             try {
@@ -555,6 +571,7 @@ public class AuraSearchActivity extends Activity {
                 int t1 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_TEXT_1), t2 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_TEXT_2);
                 int act = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_ACTION), data = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_DATA);
                 int extra = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_EXTRA_DATA), qcol = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_QUERY);
+                int card = c.getColumnIndex("suggest_result_card_image");
                 int ic1 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_ICON_1), ic2 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_ICON_2);
                 while (c.moveToNext() && out.size() < PER_APP) {
                     String title = t1 >= 0 ? c.getString(t1) : null;
@@ -584,7 +601,8 @@ public class AuraSearchActivity extends Activity {
                     i.putExtra(SearchManager.USER_QUERY, q);
                     i.putExtra(SearchManager.QUERY, qcol >= 0 && c.getString(qcol) != null ? c.getString(qcol) : title);
                     Hit hit = new Hit(title, t2 >= 0 ? c.getString(t2) : null, i);
-                    String ref = ic1 >= 0 ? c.getString(ic1) : null;
+                    String ref = card >= 0 ? c.getString(card) : null;
+                    if ((ref == null || ref.isEmpty()) && ic1 >= 0) ref = c.getString(ic1);
                     if ((ref == null || ref.isEmpty()) && ic2 >= 0) ref = c.getString(ic2);
                     hit.poster = poster(ref, s.pkg);
                     if (hit.poster == null) {
