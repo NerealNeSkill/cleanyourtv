@@ -391,6 +391,24 @@ public class AuraSearchActivity extends Activity {
         results.addView(r, lp);
     }
 
+    /** An app that has no results to list: its shortcut on the left and one card that opens the app's own search. */
+    private void searchLine(String pkg, String label, Intent search, String q, String why) {
+        Source s = new Source(label, pkg, null);
+        LinearLayout line = new LinearLayout(this);
+        line.setOrientation(LinearLayout.HORIZONTAL);
+        line.setGravity(Gravity.CENTER_VERTICAL);
+        line.addView(appShortcut(s), new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout strip = new LinearLayout(this);
+        strip.setOrientation(LinearLayout.HORIZONTAL);
+        strip.setPadding(dp(10), dp(6), dp(10), dp(6));
+        Hit h = new Hit(t("Искать «", "Search \"") + q + t("»", "\""), why == null || why.isEmpty() ? t("в приложении", "in the app") : why, search);
+        strip.addView(resultCard(s, h), cardParams());
+        line.addView(strip, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(10);
+        results.addView(line, lp);
+    }
+
     private LinearLayout.LayoutParams cardParams() {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(132), ViewGroup.LayoutParams.WRAP_CONTENT);
         p.rightMargin = dp(10);
@@ -595,17 +613,16 @@ public class AuraSearchActivity extends Activity {
             Intent v = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + enc)).setPackage(yt);
             if (done.contains(yt) || pm.resolveActivity(v, 0) == null) continue;
             done.add(yt);
-            if (!other) { header(t("Видео и музыка", "Video and music")); other = true; }
-            row(t("Искать «", "Search \"") + q + t("» в YouTube", "\" in YouTube"), t("Открыть поиск в приложении", "Open the app's own search"), v, icon(yt));
+            other = true;
+            searchLine(yt, yt.endsWith(".tv") ? "YouTube" : "YouTube", v, q, "");
         }
         Intent play = new Intent("android.media.action.MEDIA_PLAY_FROM_SEARCH").putExtra(SearchManager.QUERY, q);
         for (ResolveInfo ri : pm.queryIntentActivities(play, 0)) {
             String pkg = ri.activityInfo.packageName;
             if (pkg.equals(getPackageName()) || done.contains(pkg)) continue;
             done.add(pkg);
-            if (!other) { header(t("Видео и музыка", "Video and music")); other = true; }
-            row(t("Искать «", "Search \"") + q + t("» в ", "\" in ") + ri.loadLabel(pm), t("Открыть поиск в приложении", "Open the app's own search"),
-                    new Intent(play).setPackage(pkg), ri.loadIcon(pm));
+            other = true;
+            searchLine(pkg, String.valueOf(ri.loadLabel(pm)), new Intent(play).setPackage(pkg), q, "");
         }
         if (sources.isEmpty() && !header && !other) showMessage(t("Ничего не найдено", "Nothing found"));
         final String query = q;
@@ -655,7 +672,7 @@ public class AuraSearchActivity extends Activity {
         Intent search = new Intent(Intent.ACTION_SEARCH).setPackage(s.pkg).putExtra(SearchManager.QUERY, q);
         if (hits == null || hits.isEmpty()) {
             if (getPackageManager().resolveActivity(search, 0) != null) {
-                row(t("Искать «", "Search \"") + q + t("» в ", "\" in ") + s.label, t("Открыть поиск в приложении", "Open the app's own search") + (s.why.isEmpty() ? "" : " · " + s.why), search, icon(s.pkg));
+                searchLine(s.pkg, s.label, search, q, s.why);
             }
         }
     }
