@@ -795,7 +795,18 @@ public class AuraActivity extends Activity {
             list.addView(item, lp(ViewGroup.LayoutParams.MATCH_PARENT, dp(38), 0, 0, i == 0 ? 0 : 3, 0, 0));
         }
         split.addView(list, lp(dp(210), ViewGroup.LayoutParams.WRAP_CONTENT, 0));
-        panelHolder = new FrameLayout(this);
+        panelHolder = new FrameLayout(this) {
+            // Down from the last row of the settings stays on it instead of jumping into the section list on the left.
+            @Override public View focusSearch(View focused, int direction) {
+                View r = super.focusSearch(focused, direction);
+                if (direction == View.FOCUS_DOWN && r != null && r != focused) {
+                    View p = r;
+                    while (p != null && p != this) p = p.getParent() instanceof View ? (View) p.getParent() : null;
+                    if (p == null) return focused;
+                }
+                return r;
+            }
+        };
         split.addView(panelHolder, lp(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f, 12, 0, 0, 0));
         c.addView(split);
         showPanel();
