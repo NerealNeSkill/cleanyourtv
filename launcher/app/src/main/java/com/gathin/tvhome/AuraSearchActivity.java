@@ -681,6 +681,16 @@ public class AuraSearchActivity extends Activity {
                         }
                     }
                     if (d != null) i.setData(Uri.parse(d));
+                    // NUM takes a result as a plain view of its themoviedb.org page (its own public link filter), not as the
+                    // address its suggestion columns name. Handing NUM that link is only an address: nothing is fetched from it.
+                    if ("ru.yourok.num".equals(s.pkg)) {
+                        int idc = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_DATA_ID);
+                        String id = idc >= 0 ? c.getString(idc) : null;
+                        String kind = extra >= 0 ? c.getString(extra) : null;
+                        if (id != null && id.matches("\\d+") && ("movie".equals(kind) || "tv".equals(kind))) {
+                            i = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.themoviedb.org/" + kind + "/" + id)).setPackage(s.pkg);
+                        }
+                    }
                     i.putExtra("aura_cols", String.join(",", c.getColumnNames()));
                     if (extra >= 0 && c.getString(extra) != null) i.putExtra(SearchManager.EXTRA_DATA_KEY, c.getString(extra));
                     i.putExtra(SearchManager.USER_QUERY, q);
