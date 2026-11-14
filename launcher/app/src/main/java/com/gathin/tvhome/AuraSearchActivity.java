@@ -350,6 +350,7 @@ public class AuraSearchActivity extends Activity {
         if (!m.matches()) return false;
         String name = m.group(2).trim();
         if (name.equals("ютюб") || name.equals("ютуб") || name.equals("ютьюб") || name.equals("you tube")) name = "youtube";
+        if (name.equals("лейзи") || name.equals("лэйзи") || name.equals("лази") || name.equals("лейзи медиа")) name = "lazy";
         final String latin = translit(name);
         PackageManager pm = getPackageManager();
         List<ResolveInfo> apps = pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), 0);
