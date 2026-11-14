@@ -816,6 +816,12 @@ public class AuraSearchActivity extends Activity {
         return r;
     }
 
+    /** A column as text; a column of another type (a blob icon, a number) reads as nothing instead of failing the whole answer. */
+    private static String str(Cursor c, int i) {
+        if (i < 0) return null;
+        try { return c.getString(i); } catch (RuntimeException e) { return null; }
+    }
+
     private List<Hit> askOnce(SearchManager sm, Source s, String q) {
         try {
             SearchableInfo info = s.info != null ? s.info : sm.getSearchableInfo(s.searchable);
@@ -838,24 +844,24 @@ public class AuraSearchActivity extends Activity {
                 int card = c.getColumnIndex("suggest_result_card_image");
                 int ic1 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_ICON_1), ic2 = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_ICON_2);
                 while (c.moveToNext() && out.size() < PER_APP) {
-                    String title = t1 >= 0 ? c.getString(t1) : null;
+                    String title = t1 >= 0 ? str(c, t1) : null;
                     if (title == null || title.isEmpty()) continue;
-                    String action = act >= 0 ? c.getString(act) : null;
+                    String action = act >= 0 ? str(c, act) : null;
                     if (action == null) action = info.getSuggestIntentAction();
                     if (action == null) action = Intent.ACTION_VIEW;
                     Intent i = new Intent(action).setPackage(s.pkg);
-                    String d = data >= 0 ? c.getString(data) : null;
+                    String d = data >= 0 ? str(c, data) : null;
                     if (d == null) {
                         d = info.getSuggestIntentData();
                         int idCol = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_DATA_ID);
-                        String id = idCol >= 0 ? c.getString(idCol) : null;
+                        String id = idCol >= 0 ? str(c, idCol) : null;
                         if (d != null && id != null) d = d + "/" + Uri.encode(id);
                     }
                     if (d == null) {
                         // Some apps keep the deep link in a column of their own: take a value that looks like scheme://...
                         for (int col = 0; col < c.getColumnCount() && d == null; col++) {
                             String v;
-                            try { v = c.getString(col); } catch (RuntimeException e) { v = null; }
+                            try { v = str(c, col); } catch (RuntimeException e) { v = null; }
                             if (v != null && v.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://\\S+$")) d = v;
                         }
                     }
@@ -864,20 +870,20 @@ public class AuraSearchActivity extends Activity {
                     // address its suggestion columns name. Handing NUM that link is only an address: nothing is fetched from it.
                     if ("ru.yourok.num".equals(s.pkg)) {
                         int idc = c.getColumnIndex(SearchManager.SUGGEST_COLUMN_INTENT_DATA_ID);
-                        String id = idc >= 0 ? c.getString(idc) : null;
-                        String kind = extra >= 0 ? c.getString(extra) : null;
+                        String id = idc >= 0 ? str(c, idc) : null;
+                        String kind = extra >= 0 ? str(c, extra) : null;
                         if (id != null && id.matches("\\d+") && ("movie".equals(kind) || "tv".equals(kind))) {
                             i = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.themoviedb.org/" + kind + "/" + id)).setPackage(s.pkg);
                         }
                     }
                     i.putExtra("aura_cols", String.join(",", c.getColumnNames()));
-                    if (extra >= 0 && c.getString(extra) != null) i.putExtra(SearchManager.EXTRA_DATA_KEY, c.getString(extra));
+                    if (extra >= 0 && str(c, extra) != null) i.putExtra(SearchManager.EXTRA_DATA_KEY, str(c, extra));
                     i.putExtra(SearchManager.USER_QUERY, q);
-                    i.putExtra(SearchManager.QUERY, qcol >= 0 && c.getString(qcol) != null ? c.getString(qcol) : title);
-                    Hit hit = new Hit(title, t2 >= 0 ? c.getString(t2) : null, i);
-                    String ref = card >= 0 ? c.getString(card) : null;
-                    if ((ref == null || ref.isEmpty()) && ic1 >= 0) ref = c.getString(ic1);
-                    if ((ref == null || ref.isEmpty()) && ic2 >= 0) ref = c.getString(ic2);
+                    i.putExtra(SearchManager.QUERY, qcol >= 0 && str(c, qcol) != null ? str(c, qcol) : title);
+                    Hit hit = new Hit(title, t2 >= 0 ? str(c, t2) : null, i);
+                    String ref = card >= 0 ? str(c, card) : null;
+                    if ((ref == null || ref.isEmpty()) && ic1 >= 0) ref = str(c, ic1);
+                    if ((ref == null || ref.isEmpty()) && ic2 >= 0) ref = str(c, ic2);
                     hit.poster = poster(ref, s.pkg);
                     // An http cover is tried over https only (the launcher never sends anything in the clear); no https, no cover.
                     if (hit.poster == null && ref != null && ref.startsWith("http://")) ref = "https://" + ref.substring(7);
