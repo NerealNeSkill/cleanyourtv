@@ -752,7 +752,18 @@ public class AuraSearchActivity extends Activity {
     }
 
     /** One app's suggestions for the words, through the content provider its searchable config names. Null: not shared. */
+    /** Some providers (NUM) answer only to a lower-case query: if the typed one finds nothing, try it in lower case. */
     private List<Hit> ask(SearchManager sm, Source s, String q) {
+        List<Hit> r = askOnce(sm, s, q);
+        String low = q.toLowerCase(Locale.getDefault());
+        if ((r == null || r.isEmpty()) && !low.equals(q)) {
+            List<Hit> r2 = askOnce(sm, s, low);
+            if (r2 != null && !r2.isEmpty()) return r2;
+        }
+        return r;
+    }
+
+    private List<Hit> askOnce(SearchManager sm, Source s, String q) {
         try {
             SearchableInfo info = s.info != null ? s.info : sm.getSearchableInfo(s.searchable);
             if (info == null || info.getSuggestAuthority() == null) { s.why = t("подсказки не публикуются", "no suggestions published"); return null; }
