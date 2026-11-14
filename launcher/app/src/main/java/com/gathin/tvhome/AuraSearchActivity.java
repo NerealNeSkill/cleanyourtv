@@ -220,13 +220,14 @@ public class AuraSearchActivity extends Activity {
             ComponentName pick = serviceIndex < services.size() ? services.get(serviceIndex) : null;
             recognizer = pick != null ? SpeechRecognizer.createSpeechRecognizer(this, pick) : SpeechRecognizer.createSpeechRecognizer(this);
             recognizer.setRecognitionListener(new RecognitionListener() {
-                @Override public void onReadyForSpeech(Bundle p) { setStatus(t("Слушаю…", "Listening…")); }
-                @Override public void onBeginningOfSpeech() { }
+                @Override public void onReadyForSpeech(Bundle p) { setStatus(t("Слушаю…", "Listening…")); armTimeout(8000); }
+                @Override public void onBeginningOfSpeech() { armTimeout(15000); }
                 @Override public void onRmsChanged(float r) { wave(r); }
                 @Override public void onBufferReceived(byte[] b) { }
                 @Override public void onEndOfSpeech() { }
                 @Override public void onEvent(int t, Bundle p) { }
                 @Override public void onError(int error) {
+                    ui.removeCallbacks(giveUp);
                     // Another installed recogniser may work where this one does not (no network, no language).
                     if ((error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT || error == SpeechRecognizer.ERROR_SERVER
                             || error == SpeechRecognizer.ERROR_CLIENT) && serviceIndex + 1 < services.size()) {
@@ -238,9 +239,10 @@ public class AuraSearchActivity extends Activity {
                     showMessage(t("Не расслышал (код " + error + ", " + name + "). Введите слова или попробуйте ещё раз",
                             "Didn't catch that (code " + error + ", " + name + "). Type the words or try again"));
                 }
-                @Override public void onPartialResults(Bundle p) { heard(p, false); }
-                @Override public void onResults(Bundle p) { heard(p, true); }
+                @Override public void onPartialResults(Bundle p) { armTimeout(6000); heard(p, false); }
+                @Override public void onResults(Bundle p) { ui.removeCallbacks(giveUp); heard(p, true); }
             });
+            armTimeout(10000);
             recognizer.startListening(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                     .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                     .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
@@ -251,6 +253,15 @@ public class AuraSearchActivity extends Activity {
     }
 
     private int serviceIndex;
+
+    /** Stops listening when nothing is heard for a while, so the microphone does not stay on for ever. */
+    private final Runnable giveUp = () -> {
+        if (recognizer != null) { recognizer.destroy(); recognizer = null; }
+        setStatus(t("Не расслышал", "Didn't hear anything"));
+        showMessage(t("Ничего не слышно. Нажмите на микрофон и скажите ещё раз или введите слова", "Nothing heard. Press the microphone to try again or type the words"));
+    };
+
+    private void armTimeout(long ms) { ui.removeCallbacks(giveUp); ui.postDelayed(giveUp, ms); }
 
     private boolean askedMic;
 
@@ -309,6 +320,7 @@ public class AuraSearchActivity extends Activity {
     protected void onDestroy() {
         generation++;
         pool.shutdownNow();
+        ui.removeCallbacks(giveUp);
         if (recognizer != null) recognizer.destroy();
         super.onDestroy();
     }
