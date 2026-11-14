@@ -802,10 +802,15 @@ public class AuraActivity extends Activity {
             // Down from the last row of the settings stays on it instead of jumping into the section list on the left.
             @Override public View focusSearch(View focused, int direction) {
                 View r = super.focusSearch(focused, direction);
-                if (direction == View.FOCUS_DOWN && r != null && r != focused) {
+                if ((direction == View.FOCUS_DOWN || direction == View.FOCUS_LEFT) && r != null && r != focused) {
                     View p = r;
                     while (p != null && p != this) p = p.getParent() instanceof View ? (View) p.getParent() : null;
-                    if (p == null) return focused;
+                    if (p == null) {
+                        if (direction == View.FOCUS_DOWN) return focused;
+                        // Left out of the panel goes back to the section being shown, not to whichever row is level with the button.
+                        View current = root.findViewWithTag("cat" + category);
+                        return current != null ? current : r;
+                    }
                 }
                 return r;
             }
