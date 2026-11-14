@@ -397,7 +397,7 @@ public class AuraSearchActivity extends Activity {
         LinearLayout line = new LinearLayout(this);
         line.setOrientation(LinearLayout.HORIZONTAL);
         line.setGravity(Gravity.CENTER_VERTICAL);
-        line.addView(appShortcut(s), new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT));
+        line.addView(appShortcut(s), new LinearLayout.LayoutParams(dp(92), ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout strip = new LinearLayout(this);
         strip.setOrientation(LinearLayout.HORIZONTAL);
         strip.setPadding(dp(10), dp(6), dp(10), dp(6));
@@ -420,18 +420,18 @@ public class AuraSearchActivity extends Activity {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setGravity(Gravity.CENTER_HORIZONTAL);
-        c.setPadding(dp(8), dp(12), dp(8), dp(12));
+        c.setPadding(dp(6), dp(8), dp(6), dp(8));
         c.setFocusable(true);
         c.setClickable(true);
         c.setBackground(AuraStyle.card(pal, dp(14), false));
         c.setOnFocusChangeListener((v, f) -> v.setBackground(AuraStyle.card(pal, dp(14), f)));
         ImageView iv = new ImageView(this);
         iv.setImageDrawable(icon(s.pkg));
-        c.addView(iv, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        c.addView(iv, new LinearLayout.LayoutParams(dp(36), dp(36)));
         TextView name = new TextView(this);
         name.setText(s.label);
         name.setTextColor(pal.text);
-        name.setTextSize(13);
+        name.setTextSize(11);
         name.setGravity(Gravity.CENTER);
         name.setMaxLines(2);
         name.setPadding(0, dp(6), 0, 0);
@@ -468,6 +468,7 @@ public class AuraSearchActivity extends Activity {
         boolean cover = h.poster != null || h.posterUrl != null;
         iv.setImageDrawable(h.poster != null ? h.poster : icon(s.pkg));
         iv.setScaleType(cover ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.CENTER_INSIDE);
+        if (!cover) iv.setPadding(dp(34), dp(34), dp(34), dp(34));
         c.addView(iv, new LinearLayout.LayoutParams(dp(120), dp(140)));
         if (h.posterUrl != null) loadCover(h.posterUrl, iv);
         TextView a = new TextView(this);
@@ -666,7 +667,7 @@ public class AuraSearchActivity extends Activity {
             LinearLayout line = new LinearLayout(this);
             line.setOrientation(LinearLayout.HORIZONTAL);
             line.setGravity(Gravity.CENTER_VERTICAL);
-            line.addView(appShortcut(s), new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT));
+            line.addView(appShortcut(s), new LinearLayout.LayoutParams(dp(92), ViewGroup.LayoutParams.WRAP_CONTENT));
             android.widget.HorizontalScrollView scroller = new android.widget.HorizontalScrollView(this);
             scroller.setHorizontalScrollBarEnabled(false);
             scroller.setClipToPadding(false);
@@ -674,6 +675,12 @@ public class AuraSearchActivity extends Activity {
             strip.setOrientation(LinearLayout.HORIZONTAL);
             strip.setPadding(dp(10), dp(8), dp(10), dp(12));
             strip.setGravity(Gravity.TOP);
+            Hit echo = null;
+            for (Hit h : hits) if (echo == null && h.poster == null && h.posterUrl == null && h.title != null && h.title.trim().equalsIgnoreCase(q.trim())) echo = h;
+            if (echo != null) {
+                hits.remove(echo);
+                strip.addView(resultCard(s, new Hit(t("Искать «", "Search \"") + q + t("»", "\""), t("в приложении", "in the app"), echo.intent)), cardParams());
+            }
             for (Hit h : hits) strip.addView(resultCard(s, h), cardParams());
             scroller.addView(strip);
             line.addView(scroller, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
