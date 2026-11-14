@@ -391,6 +391,85 @@ public class AuraSearchActivity extends Activity {
         results.addView(r, lp);
     }
 
+    private LinearLayout.LayoutParams cardParams() {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(132), ViewGroup.LayoutParams.WRAP_CONTENT);
+        p.rightMargin = dp(10);
+        return p;
+    }
+
+    /** The app's own shortcut: its icon and name; OK opens the app. */
+    private View appShortcut(final Source s) {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setGravity(Gravity.CENTER_HORIZONTAL);
+        c.setPadding(dp(8), dp(12), dp(8), dp(12));
+        c.setFocusable(true);
+        c.setClickable(true);
+        c.setBackground(AuraStyle.card(pal, dp(14), false));
+        c.setOnFocusChangeListener((v, f) -> v.setBackground(AuraStyle.card(pal, dp(14), f)));
+        ImageView iv = new ImageView(this);
+        iv.setImageDrawable(icon(s.pkg));
+        c.addView(iv, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        TextView name = new TextView(this);
+        name.setText(s.label);
+        name.setTextColor(pal.text);
+        name.setTextSize(13);
+        name.setGravity(Gravity.CENTER);
+        name.setMaxLines(2);
+        name.setPadding(0, dp(6), 0, 0);
+        c.addView(name);
+        c.setOnClickListener(v -> {
+            Intent launch = getPackageManager().getLeanbackLaunchIntentForPackage(s.pkg);
+            if (launch == null) launch = getPackageManager().getLaunchIntentForPackage(s.pkg);
+            if (launch != null) open(launch);
+        });
+        return c;
+    }
+
+    /** One result: the cover on top (the app's icon when it names none), then the title and the details. */
+    private View resultCard(Source s, Hit h) {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(6), dp(6), dp(6), dp(8));
+        c.setFocusable(true);
+        c.setClickable(true);
+        c.setBackground(AuraStyle.card(pal, dp(12), false));
+        c.setOnFocusChangeListener((v, f) -> v.setBackground(AuraStyle.card(pal, dp(12), f)));
+        ImageView iv = new ImageView(this);
+        boolean cover = h.poster != null || h.posterUrl != null;
+        iv.setImageDrawable(h.poster != null ? h.poster : icon(s.pkg));
+        iv.setScaleType(cover ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.CENTER_INSIDE);
+        c.addView(iv, new LinearLayout.LayoutParams(dp(120), dp(cover ? 170 : 90)));
+        if (h.posterUrl != null) loadCover(h.posterUrl, iv);
+        TextView a = new TextView(this);
+        a.setText(h.title);
+        a.setTextColor(pal.text);
+        a.setTextSize(14);
+        a.setMaxLines(2);
+        a.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        a.setPadding(dp(2), dp(6), dp(2), 0);
+        c.addView(a);
+        String sub = h.sub;
+        if (sub != null) {
+            int cut = sub.indexOf(" · " + t("обложка: ", "cover: "));
+            if (cut >= 0) sub = sub.substring(0, cut);
+            if (sub.startsWith(t("обложка: ", "cover: "))) sub = "";
+        }
+        if (sub != null && !sub.isEmpty()) {
+            TextView b = new TextView(this);
+            b.setText(sub);
+            b.setTextColor(pal.sub);
+            b.setTextSize(11);
+            b.setMaxLines(2);
+            b.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            b.setPadding(dp(2), dp(2), dp(2), 0);
+            c.addView(b);
+        }
+        final Intent intent = h.intent;
+        c.setOnClickListener(v -> open(intent));
+        return c;
+    }
+
     private void open(Intent i) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         final String colsSeen = i.getStringExtra("aura_cols");
@@ -555,9 +634,23 @@ public class AuraSearchActivity extends Activity {
 
     private void addSource(Source s, List<Hit> hits, String q) {
         if (hits != null && !hits.isEmpty()) {
-            header(s.label);
-            Drawable ic = icon(s.pkg);
-            for (Hit h : hits) row(h.title, h.sub, h.intent, h.poster != null ? h.poster : ic, h.poster != null || h.posterUrl != null, h.posterUrl);
+            // One line per app: the app's shortcut on the left, what it found in a row to the right.
+            LinearLayout line = new LinearLayout(this);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            line.setGravity(Gravity.CENTER_VERTICAL);
+            line.addView(appShortcut(s), new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT));
+            android.widget.HorizontalScrollView scroller = new android.widget.HorizontalScrollView(this);
+            scroller.setHorizontalScrollBarEnabled(false);
+            scroller.setClipToPadding(false);
+            LinearLayout strip = new LinearLayout(this);
+            strip.setOrientation(LinearLayout.HORIZONTAL);
+            strip.setPadding(dp(10), dp(6), dp(10), dp(6));
+            for (Hit h : hits) strip.addView(resultCard(s, h), cardParams());
+            scroller.addView(strip);
+            line.addView(scroller, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = dp(10);
+            results.addView(line, lp);
         }
         Intent search = new Intent(Intent.ACTION_SEARCH).setPackage(s.pkg).putExtra(SearchManager.QUERY, q);
         if (hits == null || hits.isEmpty()) {
