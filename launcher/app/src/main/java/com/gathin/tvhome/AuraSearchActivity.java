@@ -878,6 +878,8 @@ public class AuraSearchActivity extends Activity {
                     if ((ref == null || ref.isEmpty()) && ic1 >= 0) ref = c.getString(ic1);
                     if ((ref == null || ref.isEmpty()) && ic2 >= 0) ref = c.getString(ic2);
                     hit.poster = poster(ref, s.pkg);
+                    // An http cover is tried over https only (the launcher never sends anything in the clear); no https, no cover.
+                    if (hit.poster == null && ref != null && ref.startsWith("http://")) ref = "https://" + ref.substring(7);
                     if (hit.poster == null && ref != null && ref.startsWith("https://")) hit.posterUrl = ref;
                     if (hit.poster == null && hit.posterUrl == null) {
                         String kind = ref == null || ref.isEmpty() ? t("нет", "none") : ref.startsWith("http") ? t("ссылка", "web link") : t("не открылась", "could not open");
