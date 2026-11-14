@@ -51,6 +51,8 @@ final class AuraStyle {
     /** Packages the owner switched off as search sources (comma separated). */
     /** Remote buttons the owner taught AURA as the microphone button: "keycode:scancode" pairs, comma separated. */
     static final String K_MIC_KEYS = "aura_mic_keys";
+    /** The last remote button the key helper saw: "keycode:scancode:time". */
+    static final String K_LAST_KEY = "aura_last_key";
     static final String K_SEARCH_OFF = "aura_search_off";
     static final String K_STARTED = "aura_started";
     static final String K_OK = "aura_ok";
@@ -337,6 +339,14 @@ final class AuraStyle {
             } catch (NumberFormatException ignored) { }
         }
         return false;
+    }
+
+    /** Whether the Home button helper (the accessibility service that sees the remote's buttons) is switched on. */
+    static boolean helperOn(Context c) {
+        try {
+            String list = android.provider.Settings.Secure.getString(c.getContentResolver(), "enabled_accessibility_services");
+            return list != null && list.contains(c.getPackageName() + "/");
+        } catch (RuntimeException e) { return false; }
     }
 
     /** Opens the TV's own home screen (Google TV Home and the like); false when the TV has none left switched on. */

@@ -1156,6 +1156,12 @@ public class AuraActivity extends Activity {
                 .setNegativeButton(android.R.string.cancel, null).show();
     }
 
+    private String lastKeyText() {
+        String[] p = AuraStyle.prefs(this).getString(AuraStyle.K_LAST_KEY, "").split(":");
+        if (p.length < 3) return t("пока ничего", "nothing yet");
+        return t("код ", "code ") + p[0] + (p[1].equals("0") ? "" : t(", скан ", ", scan ") + p[1]);
+    }
+
     /** Waits for one press of the remote's microphone (or any other) button and keeps it as the voice-search button. */
     private void learnMicButton() {
         final AlertDialog[] dlg = new AlertDialog[1];
@@ -1172,7 +1178,9 @@ public class AuraActivity extends Activity {
         AuraStyle.learner = done;
         dlg[0] = new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
                 .setTitle(t("Нажмите кнопку микрофона на пульте", "Press the remote's microphone button"))
-                .setMessage(t("Если ничего не происходит, включите помощника кнопки «Домой» в телефонном приложении.", "If nothing happens, switch on the Home button helper in the phone app."))
+                .setMessage(AuraStyle.helperOn(this)
+                        ? t("Помощник кнопок включён. Нажмите кнопку микрофона. Последняя кнопка, которую он видел: ", "The button helper is on. Press the microphone button. The last button it saw: ") + lastKeyText()
+                        : t("Помощник кнопок на ТВ выключен, поэтому кнопки пульта не видны. Включите его в телефонном приложении: «Главный экран» → «Помощник кнопки «Домой»».", "The button helper is off, so the remote's buttons are not seen. Switch it on in the phone app."))
                 .setNeutralButton(t("Сбросить назначенные", "Clear taught buttons"), (d, w) -> { sp.edit().remove(AuraStyle.K_MIC_KEYS).apply(); build("row:micbtn"); })
                 .setNegativeButton(android.R.string.cancel, null)
                 .setOnKeyListener((d, keyCode, ev) -> {
