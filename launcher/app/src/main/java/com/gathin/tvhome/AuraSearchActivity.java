@@ -59,7 +59,11 @@ public class AuraSearchActivity extends Activity {
     private static final long WAIT_MS = 75000;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private final ExecutorService pool = Executors.newFixedThreadPool(16);
+    // Unbounded on purpose: a provider that never answers keeps its thread blocked in a binder call that cannot be
+    // interrupted, and a fixed pool filled up with those, so later searches never reached NUM or the others.
+    private final ExecutorService pool = Executors.newCachedThreadPool();
+    /** Apps whose provider is still busy with an earlier question: not asked again until it answers (Lampa hangs for minutes). */
+    private static final java.util.Set<String> BUSY = java.util.Collections.synchronizedSet(new java.util.HashSet<String>());
     private AuraStyle.Palette pal;
     private EditText input;
     private LinearLayout results;
@@ -679,17 +683,12 @@ public class AuraSearchActivity extends Activity {
         showWaiting(q);
         for (final Source s : sources) {
             Future<List<Hit>> f = pool.submit(() -> {
-                List<Hit> first = ask(sm, s, query);
-                String plain = query.replace('ё', 'е').replace('Ё', 'Е');
-                if (plain.equals(query)) return first;
-                List<Hit> second = ask(sm, s, plain);
-                if (first == null) return second;
-                if (second != null) for (Hit h : second) {
-                    boolean dup = false;
-                    for (Hit x : first) if (x.title.equals(h.title)) { dup = true; break; }
-                    if (!dup && first.size() < PER_APP) first.add(h);
+                if (!BUSY.add(s.pkg)) { s.why = t("ещё отвечает на прошлый запрос", "still busy with the last question"); return null; }
+                try {
+                    return askBoth(sm, s, query);
+                } finally {
+                    BUSY.remove(s.pkg);
                 }
-                return first;
             });
             pool.execute(() -> {
                 List<Hit> hits;
@@ -698,6 +697,20 @@ public class AuraSearchActivity extends Activity {
                 ui.post(() -> { if (mine == generation) { waiting.remove(s.label); showWaiting(query); addSource(s, out, query); } });
             });
         }
+    }
+
+    private List<Hit> askBoth(SearchManager sm, Source s, String query) {
+        List<Hit> first = ask(sm, s, query);
+        String plain = query.replace('ё', 'е').replace('Ё', 'Е');
+        if (plain.equals(query)) return first;
+        List<Hit> second = ask(sm, s, plain);
+        if (first == null) return second;
+        if (second != null) for (Hit h : second) {
+            boolean dup = false;
+            for (Hit x : first) if (x.title.equals(h.title)) { dup = true; break; }
+            if (!dup && first.size() < PER_APP) first.add(h);
+        }
+        return first;
     }
 
     /** The apps still asked for results (Lazy asks all its sources and can take a long while): shown under the headline. */
