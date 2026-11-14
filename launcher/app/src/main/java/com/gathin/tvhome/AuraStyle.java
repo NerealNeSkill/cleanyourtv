@@ -48,6 +48,7 @@ final class AuraStyle {
     static final String K_HIDDEN = "aura_hidden";
     static final String K_STARTED = "aura_started";
     static final String K_OK = "aura_ok";
+    private static final String K_BUILD = "aura_build";
     private static final String CONFIG_KEY = "aura_ui";
 
     private AuraStyle() { }
@@ -128,6 +129,13 @@ final class AuraStyle {
     static boolean shouldRun(Context c) {
         if (!enabled(c)) return false;
         SharedPreferences sp = prefs(c);
+        // A new install (an update over the old one kills the process mid-start) gives AURA a fresh try.
+        try {
+            long built = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).lastUpdateTime;
+            if (sp.getLong(K_BUILD, 0) != built) {
+                sp.edit().putLong(K_BUILD, built).putBoolean(K_STARTED, false).putBoolean(K_OK, true).commit();
+            }
+        } catch (Exception ignored) { }
         return !(sp.getBoolean(K_STARTED, false) && !sp.getBoolean(K_OK, true));
     }
 
